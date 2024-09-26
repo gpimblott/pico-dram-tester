@@ -13,11 +13,11 @@
 ;    set pins, 0 side 0
 
 ; Note: We need to update the address lines and the RAS# at the same time.
-    pull block side 0b0111 ; blocks with RAS#, CAS#, and WE# high.
-    out pins, 8 side 0b0110 ; Lower RAS# and load row address
-    nop [1] side 0b0110     ; 19.8ns
-    nop side 0b0110         ; 26.4ns total = tRCD
-    out pins, 9 side 0b0000 ; Lower CAS#, WR#, load col address + write data
+    pull block        side 0b0111 ; blocks with RAS#, CAS#, and WE# high.
+    out pins, 8       side 0b0110 ; Lower RAS# and load row address
+    nop [1]           side 0b0110     ; 19.8ns
+    nop               side 0b0110         ; 26.4ns total = tRCD
+    out pins, 9       side 0b0000 ; Lower CAS#, WR#, load col address + write data
     mov OSR, NULL [1] side 0b0000 ; 19.8ns. Clear OSR
     nop [1]           side 0b0000 ; 33ns
     nop               side 0b0000 ; 39.6ns total = tCAH, tDH, tWCH
@@ -49,12 +49,12 @@ static inline void pmemtest_program_init(PIO pio, uint sm, uint offset, uint pin
 
     pio_sm_config c = pmemtest_program_get_default_config(offset);
     sm_config_set_out_pins(&c, pin, 9);
-    sm_config_set_set_pins(&c, pin + 9, 1);
+//    sm_config_set_set_pins(&c, pin + 9, 1);
     sm_config_set_sideset_pins(&c, pin + 9);
 //    sm_config_set_in_pins(&c, pin);
 
-    // Shift right, Autopull on, 17 bits (8 + 8 + 1) at a time
-    sm_config_set_out_shift(&c, true, true, 17);
+    // Shift right, Autopull off, 17 bits (8 + 8 + 1) at a time
+    sm_config_set_out_shift(&c, true, false, 17);
 
  //   hw_set_bits(&pio->input_sync_bypass, 1u << pin); to bypass synchronization on an input
     pio_sm_init(pio, sm, offset, &c);
