@@ -24,13 +24,13 @@ int main() {
     while(1) {
         addr++;
         db++;
-        pio_sm_put(pio, sm, (addr & 0xff) | // Row address
-                            (addr & 0xff00) | // Column address
-                            ((db & 1) << 16)); // Data bit
-//        pio_sm_put(pio, sm, (0xff << 9) | (1 << 17));
+        pio_sm_put(pio, sm, 0 | // Fast page mode flag
+                            0 << 1 | // Write flag
+                            (addr & 0xff) << 2 |  // Row address
+                            (addr & 0xff00) << 2| // Column address
+                            ((db & 1) << 18));    // Data bit
         while (pio_sm_is_tx_fifo_full(pio, sm)) {}
-//        pio_sm_put(pio, sm, 0xfedcba98l);
-//        while (pio_sm_is_tx_fifo_full(pio, sm)) {}
+        pio_sm_get(pio, sm); // FIXME: do something with the data bit
     }
 
     return 0;

@@ -1,37 +1,41 @@
 .pio_version 0 // only requires PIO version 0
 .program pmemtest
-
-.side_set 4
-.wrap_target
-;    mov OSR, ~NULL side 0
-;    wait 1 pin 0 side 0; pin 0 is actually pin+1 since in group is relative
-;    out pins, 8 side 1
-;    set pins, 1 side 1
-;    mov OSR, NULL side 1
-;    wait 0 pin 0 side 1
-;    out pins, 1 side 0
-;    set pins, 0 side 0
-
 ; Note: We need to update the address lines and the RAS# at the same time.
-    pull block        side 0b0111 ; blocks with RAS#, CAS#, and WE# high.
-    out pins, 8       side 0b0110 ; Lower RAS# and load row address
-    nop [1]           side 0b0110     ; 19.8ns
-    nop               side 0b0110         ; 26.4ns total = tRCD
-    out pins, 9       side 0b0000 ; Lower CAS#, WR#, load col address + write data
-    mov OSR, NULL [1] side 0b0000 ; 19.8ns. Clear OSR
-    nop [1]           side 0b0000 ; 33ns
-    nop               side 0b0000 ; 39.6ns total = tCAH, tDH, tWCH
-    out pins, 9       side 0b0100 ; 46.2ns. Clear addr+data and raise WR#
-    nop [1]           side 0b0100 ; 59.4ns.
-    nop [1]           side 0b0100 ; 72.6ns.
-    nop               side 0b0100 ; 79.2ns total = tRSH, tRSH
-    nop               side 0b0110 ; 85.8ns, raise CAS#
-    nop [1]           side 0b0110 ; 98.9ns.
-    nop               side 0b0111 ; 105.5ns, raise RAS#
-    set x, 24         side 0b0111 ; 112.1ns. Load 24*6.6ns delay
-loop:
-    jmp x--, loop     side 0b0111 ; 270.5ns.
-.wrap
+    jmp begin
+full_transfer:
+    set pins, 0b110   ; Lower RAS#
+    out pins, 8       ; Load row address
+    nop [2]           ; 26.5ns total = tRCD
+cas_only_transfer:
+    out pins, 9       ; Load col address + write data
+    jmp !x skip_wr
+    set pins, 0b000   ; Lower CAS#, WR#
+    jmp skip_wr2
+skip_wr:
+    set pins, 0b100   ; Lower CAS#
+skip_wr2:
+    mov OSR, NULL [1] ; 19.8ns. Clear OSR
+    nop [2]           ; 39.6ns total = tCAH, tDH, tWCH
+    set pins, 0b100   ; Raise WR#
+    out pins, 9       ; 46.2ns. Clear addr+data
+    nop [3]           ; 72.9ns total = tRSH, tRSH
+; TODO: Read the pin state here (80ns after CAS falls)
+    in pins, 1        ; Get the pin state here (ideally 80ns after CAS falls, tCAC)
+    set pins, 0b110   ; Raise CAS#
+    nop [2]           ; 98.9ns
+    jmp !y begin      ; Raise RAS# only if we are doing a full transfer
+    jmp skip_ras
+begin:
+    set pins, 0b111   ; 105.5ns, raise RAS#
+skip_ras:
+    nop [24]          ; 270.5ns
+    pull block        ; Wait for new data to arrive
+    out y, 1          ; get first bit which tells us if this is fast page mode
+    out x, 1          ; get second bit which tells us if we are in write mode.
+    jmp !y full_transfer
+    out NULL, 8           ; Throw out row address
+    jmp cas_only_transfer ; Fast page mode
+
 
 % c-sdk {
 static inline void pmemtest_program_init(PIO pio, uint sm, uint offset, uint pin) {
@@ -48,13 +52,16 @@ static inline void pmemtest_program_init(PIO pio, uint sm, uint offset, uint pin
     pio_sm_set_clkdiv(pio, sm, 1); // should just be the default.
 
     pio_sm_config c = pmemtest_program_get_default_config(offset);
+// A0, A1, A2, A3, A4, A5, A6, A7, D, RAS, CAS, WR, IN
     sm_config_set_out_pins(&c, pin, 9);
-//    sm_config_set_set_pins(&c, pin + 9, 1);
+    sm_config_set_set_pins(&c, pin + 9, 3); // Max is 5.
     sm_config_set_sideset_pins(&c, pin + 9);
-//    sm_config_set_in_pins(&c, pin);
+    sm_config_set_in_pins(&c, pin + 12);
 
-    // Shift right, Autopull off, 17 bits (8 + 8 + 1) at a time
-    sm_config_set_out_shift(&c, true, false, 17);
+    // Shift right, Autopull off, 19 bits (1 + 1 + 8 + 9) at a time
+    sm_config_set_out_shift(&c, true, false, 19);
+    // Shift left, Autopull on, 1 bit
+    sm_config_set_in_shift(&c, false, true, 1);
 
  //   hw_set_bits(&pio->input_sync_bypass, 1u << pin); to bypass synchronization on an input
     pio_sm_init(pio, sm, offset, &c);
