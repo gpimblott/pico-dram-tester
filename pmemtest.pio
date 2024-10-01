@@ -48,6 +48,7 @@ static inline void pmemtest_program_init(PIO pio, uint sm, uint offset, uint pin
         gpio_set_drive_strength(pin + count, GPIO_DRIVE_STRENGTH_4MA);
     }
     pio_sm_set_consecutive_pindirs(pio, sm, pin, 13, true); // true=output
+    pio_sm_set_consecutive_pindirs(pio, sm, pin + 12, 1, false); // input
 
     pio_sm_set_clkdiv(pio, sm, 1); // should just be the default.
 

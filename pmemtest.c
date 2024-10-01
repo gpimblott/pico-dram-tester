@@ -17,7 +17,7 @@ int ram_read(int addr)
                             (addr & 0xff00) << 2| // Column address
                             ((0 & 1) << 18));    // Data bit
         while (pio_sm_is_tx_fifo_full(pio, sm)) {}
-        return pio_sm_get(pio, sm) & 0x1;
+        return pio_sm_get(pio, sm);
 }
 
 void ram_write(int addr, int data)
@@ -42,9 +42,12 @@ int main() {
 //    uint sm;
     uint16_t addr;
     uint8_t db = 0;
+    uint din = 0;
     int i;
 
-    stdio_init_all();
+    stdio_uart_init_full(uart0, 115200, 28, 29); // 28=tx, 29=rx
+
+//    stdio_init_all();
     printf("Test.\n");
 
     bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(&pmemtest_program, &pio, &sm, &offset, pin, 2, true);
@@ -67,8 +70,9 @@ int main() {
             db++;
             ram_read(i);
             ram_write(i, db & 1);
-            ram_read(i);
+            din = ram_read(i);
         }
+        printf("Last bit: %d, last read, %d\n", db & 1, din);
     }
 
     return 0;
