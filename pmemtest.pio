@@ -3,8 +3,8 @@
 ; Note: We need to update the address lines and the RAS# at the same time.
     jmp begin
 full_transfer:
-    set pins, 0b110   ; Lower RAS#
     out pins, 8       ; Load row address
+    set pins, 0b110   ; Lower RAS#
     nop [2]           ; 26.5ns total = tRCD
 cas_only_transfer:
     out pins, 9       ; Load col address + write data
@@ -19,9 +19,9 @@ skip_wr2:
     set pins, 0b100   ; Raise WR#
     out pins, 9       ; 46.2ns. Clear addr+data
     nop [3]           ; 72.9ns total = tRSH, tRSH
-; TODO: Read the pin state here (80ns after CAS falls)
     in pins, 1        ; Get the pin state here (ideally 80ns after CAS falls, tCAC)
     set pins, 0b110   ; Raise CAS#
+    push noblock
     nop [2]           ; 98.9ns
     jmp !y begin      ; Raise RAS# only if we are doing a full transfer
     jmp skip_ras
@@ -62,7 +62,7 @@ static inline void pmemtest_program_init(PIO pio, uint sm, uint offset, uint pin
     // Shift right, Autopull off, 19 bits (1 + 1 + 8 + 9) at a time
     sm_config_set_out_shift(&c, true, false, 19);
     // Shift left, Autopull on, 1 bit
-    sm_config_set_in_shift(&c, false, true, 1);
+    sm_config_set_in_shift(&c, false, false, 1);
 
  //   hw_set_bits(&pio->input_sync_bypass, 1u << pin); to bypass synchronization on an input
     pio_sm_init(pio, sm, offset, &c);
