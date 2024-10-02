@@ -2,39 +2,40 @@
 .program pmemtest
 ; Note: We need to update the address lines and the RAS# at the same time.
     jmp begin
-full_transfer:
-    out pins, 8       ; Load row address
-    set pins, 0b110   ; Lower RAS#
-    nop [2]           ; 26.5ns total = tRCD
+full_transfer:        ; (delay val at end of instr)
+    nop [27]          ; 264.0  tRC = 260.7ns
+    out pins, 8       ; 3.3    Load row address
+    set pins, 0b110   ; 6.6    Lower RAS#
+    nop [5]           ; 26.4   tRCD (RAS to CAS) = 26.4ns
 cas_only_transfer:
-    out pins, 9       ; Load col address + write data
-    jmp !x skip_wr
-    set pins, 0b000   ; Lower CAS#, WR#
-    jmp skip_wr2
+    out pins, 9       ; 29.7     Load col address + write data
+    jmp !x skip_wr    ; 33
+    set pins, 0b000   ; 36.3     Lower CAS#, WR#
+    jmp skip_wr2      ; 39.6
 skip_wr:
-    set pins, 0b100   ; Lower CAS#
+    set pins, 0b100   ; 36.3     Lower CAS#
+    nop               ; 39.6
 skip_wr2:
-    mov OSR, NULL [1] ; 19.8ns. Clear OSR
-    nop [2]           ; 39.6ns total = tCAH, tDH, tWCH
-    set pins, 0b100   ; Raise WR#
-    out pins, 9       ; 46.2ns. Clear addr+data
-    nop [3]           ; 72.9ns total = tRSH, tRSH
-    in pins, 1        ; Get the pin state here (ideally 80ns after CAS falls, tCAC)
-    set pins, 0b110   ; Raise CAS#
-    push noblock
-    nop [2]           ; 98.9ns
-    jmp !y begin      ; Raise RAS# only if we are doing a full transfer
-    jmp skip_ras
+    mov OSR, NULL     ; 42.9     Clear OSR
+    nop [3]           ; 56.1
+    set pins, 0b100   ; 59.4     Raise WR#  tWCH = 26.4ns.
+    out pins, 9       ; 62.7     Clear addr+data. tCAH, tDH = 29.7ns.
+    nop [13]          ; 108.9    total = tRSH, tRSH
+    in pins, 1        ; 112.2    Get bit tCAC = 75.9ns
+    set pins, 0b110   ; 115.5    Raise CAS#. tCAS = 79.2ns
+    push noblock      ; 118.8
+    nop [9]           ; 151.8
+    jmp !y begin      ; 155.1 Raise RAS# only if we are doing a full transfer
+    jmp skip_ras      ; 158.4
 begin:
-    set pins, 0b111   ; 105.5ns, raise RAS#
+    set pins, 0b111   ; 158.4 raise RAS#. tRAS=151.8ns
 skip_ras:
-    nop [24]          ; 270.5ns
-    pull block        ; Wait for new data to arrive
-    out y, 1          ; get first bit which tells us if this is fast page mode
-    out x, 1          ; get second bit which tells us if we are in write mode.
-    jmp !y full_transfer
-    out NULL, 8           ; Throw out row address
-    jmp cas_only_transfer ; Fast page mode
+    pull block        ; 161.7 Wait for new data to arrive
+    out y, 1          ; 165.0 get first bit which tells us if this is fast page mode
+    out x, 1          ; 168.3 get second bit which tells us if we are in write mode.
+    jmp !y full_transfer ; 171.6
+    out NULL, 8           ; 174.9 Throw out row address
+    jmp cas_only_transfer ; 178.2 Fast page mode tCP=22*3.3=72.6ns
 
 
 % c-sdk {

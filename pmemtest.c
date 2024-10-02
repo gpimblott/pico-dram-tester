@@ -86,7 +86,9 @@ int main() {
     uint din = 0;
     int i, retval;
 
-    stdio_uart_init_full(uart0, 115200, 28, 29); // 28=tx, 29=rx
+    // PLL->prim = 0x51000.
+
+    stdio_uart_init_full(uart0, 57600, 28, 29); // 28=tx, 29=rx actually runs at 115200 due to overclock
     gpio_init(15);
     gpio_set_dir(15, GPIO_OUT);
 
