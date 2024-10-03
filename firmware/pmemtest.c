@@ -37,12 +37,117 @@ int addr_map(int addr)
  //   return (addr >> 8) | ((addr & 0xFF) << 8);
 }
 
+// Fills the RAM with the provided data.
 void ram_fill(int range, int data)
 {
     int i;
     for (i = 0; i < range; i++) {
         ram_write(addr_map(i), data);
     }
+}
+
+static inline bool me_r0(int a)
+{
+    int bit = ram_read(a);
+    return (bit == 0);
+}
+
+static inline bool me_r1(int a)
+{
+    int bit = ram_read(a);
+    return (bit == 1);
+}
+
+static inline bool me_w0(int a)
+{
+    ram_write(a, 0);
+    return true;
+}
+
+static inline bool me_w1(int a)
+{
+    ram_write(a, 1);
+    return true;
+}
+
+static inline bool marchb_m0(int a)
+{
+    me_w0(a);
+    return true;
+}
+
+static inline bool marchb_m1(int a)
+{
+    return me_r0(a) && me_w1(a) && me_r1(a) && me_w0(a) && me_r0(a) && me_w1(a);
+}
+
+static inline bool marchb_m2(int a)
+{
+    return me_r1(a) && me_w0(a) && me_w1(a);
+}
+
+static inline bool marchb_m3(int a)
+{
+    return me_r1(a) && me_w0(a) && me_w1(a) && me_w0(a);
+}
+
+static inline bool marchb_m4(int a)
+{
+    return me_r0(a) && me_w1(a) && me_w0(a);
+}
+
+static inline bool march_element(int addr_size, bool descending, int algorithm)
+{
+    int inc = descending ? -1 : 1;
+    int start = descending ? (addr_size - 1) : 0;
+    int end = descending ? -1 : addr_size;
+    int a;
+    bool ret;
+
+    for (a = start; a != end; a += inc) {
+        switch (algorithm) {
+            case 0:
+                ret = marchb_m0(a);
+                break;
+            case 1:
+                ret = marchb_m1(a);
+                break;
+            case 2:
+                ret = marchb_m2(a);
+                break;
+            case 3:
+                ret = marchb_m3(a);
+                break;
+            case 4:
+                marchb_m4(a);
+                break;
+            default:
+                break;
+        }
+        if (!ret) return false;
+    }
+    return true;
+}
+
+bool marchb_test(int addr_size)
+{
+    bool ret = true;
+    printf("M0 ");
+    ret = march_element(addr_size, false, 0);
+    if (!ret) return false;
+    printf("M1 ");
+    ret = march_element(addr_size, false, 1);
+    if (!ret) return false;
+    printf("M2 ");
+    ret = march_element(addr_size, false, 2);
+    if (!ret) return false;
+    printf("M3 ");
+    ret = march_element(addr_size, true, 3);
+    if (!ret) return false;
+    printf("M4 ");
+    ret = march_element(addr_size, true, 4);
+    if (!ret) return false;
+    return ret;
 }
 
 int ram_toggle_check(int range, uint expected)
@@ -99,7 +204,9 @@ int main() {
     pio_sm_set_enabled(pio, sm, true);
 
     while(1) {
-        retval = ramtest(65536);
+        //retval = ramtest(65536);
+        printf("Begin march test.\n");
+        retval = marchb_test(65536);
         printf("Rv: %d\n", retval);
     }
 
