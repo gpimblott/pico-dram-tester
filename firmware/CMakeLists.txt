@@ -21,8 +21,8 @@ target_compile_definitions(pmemtest PRIVATE
 
 pico_generate_pio_header(pmemtest ${CMAKE_CURRENT_LIST_DIR}/pmemtest.pio)
 
-target_sources(pmemtest PRIVATE pmemtest.c)
+target_sources(pmemtest PRIVATE pmemtest.c st7789.c)
 
-target_link_libraries(pmemtest PRIVATE pico_stdlib hardware_pio)
+target_link_libraries(pmemtest PRIVATE pico_stdlib hardware_pio hardware_spi)
 
 pico_add_extra_outputs(pmemtest)

@@ -4,6 +4,7 @@
 #include "hardware/pio.h"
 // Our assembled program:
 #include "pmemtest.pio.h"
+#include "st7789.h"
 
 PIO pio;
 uint sm = 0;
@@ -198,6 +199,9 @@ int main() {
     gpio_set_dir(15, GPIO_OUT);
 
     printf("Test.\n");
+
+    // Init display
+    st7789_init();
 
     bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(&pmemtest_program, &pio, &sm, &offset, pin, 2, true);
     pmemtest_program_init(pio, sm, offset, pin);
