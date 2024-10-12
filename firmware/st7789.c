@@ -27,16 +27,23 @@
 #define CMD_MADCTL   0x36
 #define CMD_COLMOD   0x3A
 
+// Display corner isn't always 0,0
+static uint16_t _x_offset = 0;
+static uint16_t _y_offset = 0;
+
+// Mode for transmitting a command
 static inline void mode_cmd()
 {
     gpio_put(PIN_SPI_DC, 0);
 }
 
+// Mode for transmitting data
 static inline void mode_data()
 {
     gpio_put(PIN_SPI_DC, 1);
 }
 
+// Select the device
 static inline void cs_low()
 {
     asm volatile("nop \n nop \n nop");
@@ -44,6 +51,7 @@ static inline void cs_low()
     asm volatile("nop \n nop \n nop");
 }
 
+// Deselect the device
 static inline void cs_high()
 {
     asm volatile("nop \n nop \n nop");
@@ -51,7 +59,8 @@ static inline void cs_high()
     asm volatile("nop \n nop \n nop");
 }
 
-static void write_command(uint8_t cmd, uint8_t num_bytes, uint8_t *buf, bool cs)
+// Write a command byte
+static void write_command(uint8_t cmd, uint8_t num_bytes, uint8_t buf[], bool cs)
 {
     if (cs) cs_low();
     mode_cmd();
@@ -65,6 +74,7 @@ static void write_command(uint8_t cmd, uint8_t num_bytes, uint8_t *buf, bool cs)
     if (cs) cs_high();
 }
 
+// Write a 16-bit value
 static void write_data16(int num_words, uint16_t *buf)
 {
     hw_write_masked(&spi_get_hw(spi0)->cr0, 15 << SPI_SSPCR0_DSS_LSB, SPI_SSPCR0_DSS_BITS);
@@ -72,37 +82,13 @@ static void write_data16(int num_words, uint16_t *buf)
     hw_write_masked(&spi_get_hw(spi0)->cr0, 7 << SPI_SSPCR0_DSS_LSB, SPI_SSPCR0_DSS_BITS);
 }
 
-static void pset(uint16_t x, uint16_t y, uint16_t col)
-{
-    uint8_t db[] = {0, 0, 0, 0};
-    cs_low();
-    db[0] = x >> 8;
-    db[1] = x & 0xFF; // start
-    db[2] = (x + 1) >> 8;
-    db[3] = (x + 1) & 0xFF; // end
-    write_command(CMD_CASET, 4, db, false);
-    db[0] = y >> 8;
-    db[1] = y & 0xFF;
-    db[2] = (y + 1) >> 8;
-    db[3] = (y + 1) & 0xFF;
-    write_command(CMD_RASET, 4, db, false);
-    write_command(CMD_RAMWR, 0, NULL, false);
-    write_data16(1, &col);
-    cs_high();
-}
-
 static void st7789_gpio_init()
 {
-
-#if !defined(spi0)
-#warning something wrong with spi0 not being defined
-#endif
     // Set up GPIO for SPI0
-    spi_init(spi0, 10 * 1000 * 1000);
+    spi_init(spi0, 30 * 1000 * 1000);
     spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
     gpio_set_function(PIN_SPI_SCK, GPIO_FUNC_SPI);
     gpio_set_function(PIN_SPI_DO, GPIO_FUNC_SPI);
- //   bi_decl(bi_2pins_with_func(PIN_SPI_DO, PIN_SPI_SCK));
 
     gpio_init(PIN_SPI_CS);
     gpio_set_dir(PIN_SPI_CS, GPIO_OUT);
@@ -120,48 +106,73 @@ static void st7789_gpio_init()
 
 }
 
-void st7789_init()
+// Set the window size for data writes
+static inline void st7789_window(uint16_t x, uint16_t y, uint16_t width, uint16_t height, bool cs)
 {
-    uint32_t count;
-    uint16_t col;
-    uint8_t db[] = {0, 0, 0, 0};
-    st7789_gpio_init();
-    write_command(CMD_SWRESET, 0, NULL, true); // Software reset
-    sleep_ms(150);
-    write_command(CMD_SLPOUT, 0, NULL, true);  // Exit sleep mode
-    sleep_ms(10);
-    db[0] = 0x55; // 16 bit color
-    write_command(CMD_COLMOD, 1, db, true);    // Interface format
-    sleep_ms(10);
-    db[0] = 0x08; // RGB
-    write_command(CMD_MADCTL, 1, db, true);    // Memory address control
-    db[0] = 0x0; // X address start = 0
-    db[1] = 0x0;
-    db[2] = 0x0; // X address end = 240
-    db[3] = 250;
-    write_command(CMD_CASET, 4, db, true);
-    db[0] = 0x0; // Y address start = 0
-    db[1] = 0x0;
-    db[2] = 0x0; //135 >> 8; // Y address end = 320
-    db[3] = 145;
-    write_command(CMD_RASET, 4, db, true);
-    write_command(CMD_INVON, 0, NULL, true);   // Display inversion on
-    sleep_ms(10);
-    write_command(CMD_NORON, 0, NULL, true);   // Partial off = normal
-    sleep_ms(10);
-    write_command(CMD_DISPON, 0, NULL, true);  // Display on
-    sleep_ms(10);
+    uint16_t sx = x + _x_offset;
+    uint16_t sy = y + _y_offset;
+    uint16_t ex = x + width - 1 + _x_offset;
+    uint16_t ey = y + height - 1 + _y_offset;
+    write_command(CMD_CASET, 4, (uint8_t []){sy >> 8, sy & 0xff, ey >> 8, ey & 0xff}, cs);
+    write_command(CMD_RASET, 4, (uint8_t []){sx >> 8, sx & 0xff, ex >> 8, ex & 0xff}, cs);
+}
 
-// Clear screen
-    col = 0x0010;
+// Low level display initialization.
+void st7789_disp_init(uint16_t xoff, uint16_t yoff, uint16_t width, uint16_t height)
+{
+    _x_offset = xoff;
+    _y_offset = yoff;
+    write_command(CMD_SWRESET, 0, NULL, true);                   // Software reset
+    sleep_ms(120);
+    write_command(CMD_SLPOUT, 0, NULL, true);                    // Exit sleep mode
+    sleep_ms(5);
+    write_command(CMD_COLMOD, 1, (uint8_t []){ 0x55 }, true);    // Interface format: 16 bit color
+    write_command(CMD_MADCTL, 1, (uint8_t []){ 0x48 }, true);    // Memory address control: BGR
+    st7789_window(0, 0, width, height, true);                    // Set display size
+    write_command(CMD_INVON, 0, NULL, true);                     // Display inversion on
+    write_command(CMD_NORON, 0, NULL, true);                     // Partial off = normal
+    write_command(CMD_DISPON, 0, NULL, true);                    // Display on
+}
+
+// Draw a filled rectangle.
+void st7789_fill (uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, uint16_t col)
+{
+    int count;
     cs_low();
+    st7789_window(sx, sy, width, height, false);
     write_command(CMD_RAMWR, 0, NULL, false);
-    for (count = 0; count < 135 * 240; count++) {
+    for (count = 0; count < width * height; count++) {
         write_data16(1, &col);
     }
     cs_high();
+}
 
-    for (int count = 10; count < 230; count++) {
-        pset(count, count, 0x0FFF);
+// Plot a single pixel. Inefficient!
+static void pset(uint16_t x, uint16_t y, uint16_t col)
+{
+    uint8_t db[] = {0, 0, 0, 0};
+    cs_low();
+    st7789_window(x, y, 1, 1, false);
+    write_command(CMD_RAMWR, 0, NULL, false);
+    write_data16(1, &col);
+    cs_high();
+}
+
+// Initialize the display
+void st7789_init()
+{
+    uint16_t count;
+    uint16_t col;
+    st7789_gpio_init();
+    st7789_disp_init(40, 53, 240, 135);
+    st7789_fill(0, 0, 240, 135, 0x0040); // Clear screen
+
+    // Pixel format: BGR (15-0) 5:6:5.
+    for (count = 0; count < 64; count++) {
+        st7789_fill(0, count, 100, 1, count << 11); // horizontal line
+    }
+
+    for (int count = 0; count < 60; count++) {
+        pset(count, count, 0xFFFF);
     }
 }
