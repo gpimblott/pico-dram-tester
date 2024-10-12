@@ -3,6 +3,8 @@
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
 
+#include "rtc_image.h"
+
 #define PIN_SPI_CS 17
 #define PIN_SPI_SCK 18
 #define PIN_SPI_DO 19
@@ -75,7 +77,7 @@ static void write_command(uint8_t cmd, uint8_t num_bytes, uint8_t buf[], bool cs
 }
 
 // Write a 16-bit value
-static void write_data16(int num_words, uint16_t *buf)
+static void write_data16(size_t num_words, uint16_t *buf)
 {
     hw_write_masked(&spi_get_hw(spi0)->cr0, 15 << SPI_SSPCR0_DSS_LSB, SPI_SSPCR0_DSS_BITS);
     spi_write16_blocking(spi0, buf, num_words);
@@ -135,16 +137,36 @@ void st7789_disp_init(uint16_t xoff, uint16_t yoff, uint16_t width, uint16_t hei
 }
 
 // Draw a filled rectangle.
-void st7789_fill (uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, uint16_t col)
+void st7789_fill(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, uint16_t col)
 {
     int count;
     cs_low();
     st7789_window(sx, sy, width, height, false);
     write_command(CMD_RAMWR, 0, NULL, false);
+    hw_write_masked(&spi_get_hw(spi0)->cr0, 15 << SPI_SSPCR0_DSS_LSB, SPI_SSPCR0_DSS_BITS);
     for (count = 0; count < width * height; count++) {
-        write_data16(1, &col);
+        spi_write16_blocking(spi0, &col, 1);
     }
+    hw_write_masked(&spi_get_hw(spi0)->cr0, 7 << SPI_SSPCR0_DSS_LSB, SPI_SSPCR0_DSS_BITS);
     cs_high();
+}
+
+// Plots a bitmap. Must be 16bpp and match the display type (BGR 565)
+void st7789_bitblt(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, uint16_t *buf)
+{
+    cs_low();
+    st7789_window(sx, sy, width, height, false);
+    write_command(CMD_RAMWR, 0, NULL, false);
+    write_data16(width * height, buf);
+    cs_high();
+}
+
+// Rotates the bitmap using a trick. A single-line bitblt assumes the orientation of the line.
+void st7789_bitblt_rot(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, uint16_t *buf)
+{
+    for (int count = 0; count < height; count++) {
+        st7789_bitblt(sx, sy + count, width, 1, &buf[width * count]);
+    }
 }
 
 // Plot a single pixel. Inefficient!
@@ -175,4 +197,11 @@ void st7789_init()
     for (int count = 0; count < 60; count++) {
         pset(count, count, 0xFFFF);
     }
+
+#if 0
+    for (int count = 0; count < 135; count++) {
+        st7789_bitblt(0, count, 240, 1, &image_data[240*count]);
+    }
+#endif
+    st7789_bitblt_rot(0, 0, 240, 135, (uint16_t *)image_data);
 }
