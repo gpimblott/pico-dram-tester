@@ -182,26 +182,27 @@ static void pset(uint16_t x, uint16_t y, uint16_t col)
 }
 
 // Draws a string at the specific coordinates using the default font
-void font_string(uint16_t x, uint16_t y, char *text, uint16_t fg_color, uint16_t bg_color)
+void font_string(uint16_t x, uint16_t y, char *text, uint16_t fg_color, uint16_t bg_color, bool bold)
 {
-    volatile uint8_t row, col;
-    volatile uint16_t width;
-    volatile uint16_t offset;
-    volatile uint8_t bytes_column;
-    volatile uint8_t byte;
-    volatile uint8_t db;
-    volatile uint8_t col_count;
+    uint8_t row, col;
+    uint16_t total_width, width;
+    uint16_t offset;
+    uint8_t bytes_column;
+    uint8_t byte;
+    uint8_t db;
+    uint8_t col_count;
     char *text_buf = text;
+    uint8_t prev_bit;
 
     // First, compute total width
     while (*text_buf) {
-        width += font_width_table[*(text_buf++)];
+        total_width += font_width_table[*(text_buf++)] + (bold ? 1 : 0);
     }
 
     for (row = 0; row < font_height; row++) {
         // Set the window
         cs_low();
-        st7789_window(x, y + row, width, 1, false);
+        st7789_window(x, y + row, total_width, 1, false);
         write_command(CMD_RAMWR, 0, NULL, false);
         hw_write_masked(&spi_get_hw(spi0)->cr0, 15 << SPI_SSPCR0_DSS_LSB, SPI_SSPCR0_DSS_BITS);
 
@@ -213,21 +214,31 @@ void font_string(uint16_t x, uint16_t y, char *text, uint16_t fg_color, uint16_t
             offset = font_offset_table[*text_buf];
             // Get exact byte offset into the character table
             offset += row * bytes_column;
+            prev_bit = 0;
             for (byte = 0; byte < bytes_column; byte++) {
                 db = font_data_table[offset + byte];
                 col_count = (width > 8) ? 8 : width;
                 for (col = 0; col < col_count; col++) {
-                    if (db & 0x1) {
+                    if ((db & 0x1) || (bold && (prev_bit == 1))) {
                         // Emit foreground color
                         spi_write16_blocking(spi0, &fg_color, 1);
                     } else {
                         // Emit background color
                         spi_write16_blocking(spi0, &bg_color, 1);
                     }
+                    prev_bit = db & 0x1;
                     db = db >> 1;
                 }
-                width -= col_count;
+               width -= col_count;
             }
+            if (bold) {
+                if (prev_bit) {
+                    spi_write16_blocking(spi0, &fg_color, 1);
+                } else {
+                    spi_write16_blocking(spi0, &bg_color, 1);
+                }
+            }
+
             text_buf++;
         }
         hw_write_masked(&spi_get_hw(spi0)->cr0, 7 << SPI_SSPCR0_DSS_LSB, SPI_SSPCR0_DSS_BITS);
@@ -254,7 +265,7 @@ void st7789_init()
     }
 
     st7789_bitblt_rot(0, 0, 240, 135, (uint16_t *)image_data);
-    font_string(10, 10, "ABCDEFGHIJKLMNOP\0", 0xffff, 0x0000);
+    font_string(10, 10, "ABCDEFGHIJKLMNOP\0", 0xffff, 0x0000, true);
 #if 0
     while (1) {
         for (count = 0; count < 36; count++) {
