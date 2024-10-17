@@ -4,6 +4,7 @@
 #include "hardware/spi.h"
 
 #include "rtc_image.h"
+#include "prop_font.h"
 
 #define PIN_SPI_CS 17
 #define PIN_SPI_SCK 18
@@ -87,7 +88,7 @@ static void write_data16(size_t num_words, uint16_t *buf)
 static void st7789_gpio_init()
 {
     // Set up GPIO for SPI0
-    spi_init(spi0, 30 * 1000 * 1000);
+    spi_init(spi0, 70 * 1000 * 1000);
     spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
     gpio_set_function(PIN_SPI_SCK, GPIO_FUNC_SPI);
     gpio_set_function(PIN_SPI_DO, GPIO_FUNC_SPI);
@@ -180,13 +181,67 @@ static void pset(uint16_t x, uint16_t y, uint16_t col)
     cs_high();
 }
 
+// Draws a string at the specific coordinates using the default font
+void font_string(uint16_t x, uint16_t y, char *text, uint16_t fg_color, uint16_t bg_color)
+{
+    volatile uint8_t row, col;
+    volatile uint16_t width;
+    volatile uint16_t offset;
+    volatile uint8_t bytes_column;
+    volatile uint8_t byte;
+    volatile uint8_t db;
+    volatile uint8_t col_count;
+    char *text_buf = text;
+
+    // First, compute total width
+    while (*text_buf) {
+        width += font_width_table[*(text_buf++)];
+    }
+
+    for (row = 0; row < font_height; row++) {
+        // Set the window
+        cs_low();
+        st7789_window(x, y + row, width, 1, false);
+        write_command(CMD_RAMWR, 0, NULL, false);
+        hw_write_masked(&spi_get_hw(spi0)->cr0, 15 << SPI_SSPCR0_DSS_LSB, SPI_SSPCR0_DSS_BITS);
+
+        text_buf = text;
+        while (*text_buf) {
+            // Get information about this character
+            width = font_width_table[*text_buf];
+            bytes_column = (width + 7) >> 3;
+            offset = font_offset_table[*text_buf];
+            // Get exact byte offset into the character table
+            offset += row * bytes_column;
+            for (byte = 0; byte < bytes_column; byte++) {
+                db = font_data_table[offset + byte];
+                col_count = (width > 8) ? 8 : width;
+                for (col = 0; col < col_count; col++) {
+                    if (db & 0x1) {
+                        // Emit foreground color
+                        spi_write16_blocking(spi0, &fg_color, 1);
+                    } else {
+                        // Emit background color
+                        spi_write16_blocking(spi0, &bg_color, 1);
+                    }
+                    db = db >> 1;
+                }
+                width -= col_count;
+            }
+            text_buf++;
+        }
+        hw_write_masked(&spi_get_hw(spi0)->cr0, 7 << SPI_SSPCR0_DSS_LSB, SPI_SSPCR0_DSS_BITS);
+        cs_high();
+    }
+}
+
 // Initialize the display
 void st7789_init()
 {
     uint16_t count;
     uint16_t col;
     st7789_gpio_init();
-    st7789_disp_init(40, 53, 240, 135);
+    st7789_disp_init(39, 53, 240, 135);
     st7789_fill(0, 0, 240, 135, 0x0040); // Clear screen
 
     // Pixel format: BGR (15-0) 5:6:5.
@@ -194,14 +249,22 @@ void st7789_init()
         st7789_fill(0, count, 100, 1, count << 11); // horizontal line
     }
 
-    for (int count = 0; count < 60; count++) {
+    for (count = 0; count < 60; count++) {
         pset(count, count, 0xFFFF);
     }
 
+    st7789_bitblt_rot(0, 0, 240, 135, (uint16_t *)image_data);
+    font_string(10, 10, "ABCDEFGHIJKLMNOP\0", 0xffff, 0x0000);
 #if 0
-    for (int count = 0; count < 135; count++) {
-        st7789_bitblt(0, count, 240, 1, &image_data[240*count]);
+    while (1) {
+        for (count = 0; count < 36; count++) {
+            st7789_bitblt_rot(0, count, 240, 100, (uint16_t *)image_data);
+ //           sleep_ms(0);
+        }
+        for (count = 35; count > 0; count--) {
+            st7789_bitblt_rot(0, count, 240, 100, (uint16_t *)image_data);
+//            sleep_ms(0);
+        }
     }
 #endif
-    st7789_bitblt_rot(0, 0, 240, 135, (uint16_t *)image_data);
 }
