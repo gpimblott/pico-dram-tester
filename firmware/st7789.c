@@ -30,6 +30,24 @@
 #define CMD_MADCTL   0x36
 #define CMD_COLMOD   0x3A
 
+// A few colors
+#define COLOR_BLACK 0x0000
+#define COLOR_DKBLUE 0xa800
+#define COLOR_DKGREEN 0x0540
+#define COLOR_DKCYAN 0xad40
+#define COLOR_DKRED 0x0015
+#define COLOR_DKMAGENTA 0xa815
+#define COLOR_DKYELLOW 0x0555
+#define COLOR_LTGRAY 0xad55
+#define COLOR_DKGRAY 0x52aa
+#define COLOR_BLUE 0xfaaa
+#define COLOR_GREEN 0x57ea
+#define COLOR_CYAN 0xffea
+#define COLOR_RED 0x52bf
+#define COLOR_MAGENTA 0xfabf
+#define COLOR_YELLOW 0x57ff
+#define COLOR_WHITE 0xffff
+
 // Display corner isn't always 0,0
 static uint16_t _x_offset = 0;
 static uint16_t _y_offset = 0;
@@ -193,13 +211,21 @@ void font_string(uint16_t x, uint16_t y, char *text, uint16_t fg_color, uint16_t
     uint8_t col_count;
     char *text_buf = text;
     uint8_t prev_bit;
+    uint8_t f_height;
+
+    // Hack for dialog elements which would be too tall
+    if (*text < 32) {
+        f_height = 11;
+    } else {
+        f_height = font_height;
+    }
 
     // First, compute total width
     while (*text_buf) {
         total_width += font_width_table[*(text_buf++)] + (bold ? 1 : 0);
     }
 
-    for (row = 0; row < font_height; row++) {
+    for (row = 0; row < f_height; row++) {
         // Set the window
         cs_low();
         st7789_window(x, y + row, total_width, 1, false);
@@ -246,13 +272,110 @@ void font_string(uint16_t x, uint16_t y, char *text, uint16_t fg_color, uint16_t
     }
 }
 
+// Colors for fancy rectangles
+uint16_t color_fill = COLOR_LTGRAY;
+uint16_t color_outline = COLOR_BLACK;
+uint16_t color_shadow = COLOR_DKGRAY;
+uint16_t color_highlight = COLOR_WHITE;
+uint16_t color_field = COLOR_WHITE;
+
+// Two-color rectangle
+void shadow_rect(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, uint16_t tl, uint16_t br)
+{
+    st7789_fill(sx,             sy,              width - 1, 1,          tl);
+    st7789_fill(sx,             sy,              1,         height - 1, tl);
+    st7789_fill(sx + width - 1, sy,              1,         height,     br);
+    st7789_fill(sx            , sy + height - 1, width,     1,          br);
+}
+
+typedef enum {
+    W_RAISED_OUTER,
+    W_RAISED_INNER,
+    W_SUNKEN_OUTER,
+    W_SUNKEN_INNER,
+    WINDOW,
+    B_RAISED_OUTER,
+    B_RAISED_INNER,
+    B_SUNKEN_OUTER,
+    B_SUNKEN_INNER,
+    BUTTON,
+    FIELD,
+    STATUS,
+    GROUPING
+} e_style;
+
+void fancy_rect(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, e_style style)
+{
+    switch (style) {
+    case W_RAISED_OUTER:
+        shadow_rect(sx, sy, width, height, color_fill, color_outline);
+        break;
+    case W_RAISED_INNER:
+        shadow_rect(sx, sy, width, height, color_highlight, color_shadow);
+        break;
+    case W_SUNKEN_OUTER:
+        shadow_rect(sx, sy, width, height, color_shadow, color_highlight);
+        break;
+    case W_SUNKEN_INNER:
+        shadow_rect(sx, sy, width, height, color_outline, color_fill);
+        break;
+    case B_RAISED_OUTER:
+        shadow_rect(sx, sy, width, height, color_highlight, color_outline);
+        break;
+    case B_RAISED_INNER:
+        shadow_rect(sx, sy, width, height, color_fill, color_shadow);
+        break;
+    case B_SUNKEN_OUTER:
+        shadow_rect(sx, sy, width, height, color_outline, color_highlight);
+        break;
+    case B_SUNKEN_INNER:
+        shadow_rect(sx, sy, width, height, color_shadow, color_fill);
+        break;
+    case WINDOW:
+        fancy_rect(sx, sy, width, height, W_RAISED_OUTER);
+        fancy_rect(sx + 1, sy + 1, width - 2, height - 2, W_RAISED_INNER);
+        st7789_fill(sx + 2, sy + 2, width - 4, height - 4, color_fill);
+    case BUTTON:
+        fancy_rect(sx, sy, width, height, B_RAISED_OUTER);
+        fancy_rect(sx + 1, sy + 1, width - 2, height - 2, B_RAISED_INNER);
+        st7789_fill(sx + 2, sy + 2, width - 4, height - 4, color_fill);
+        break;
+    case FIELD:
+        fancy_rect(sx, sy, width, height, B_SUNKEN_OUTER);
+        fancy_rect(sx + 1, sy + 1, width - 2, height - 2, B_SUNKEN_INNER);
+        st7789_fill(sx + 2, sy + 2, width - 4, height - 4, color_field);
+        break;
+    case STATUS:
+        fancy_rect(sx, sy, width, height, B_SUNKEN_OUTER);
+        st7789_fill(sx + 1, sy + 1, width - 1, height - 1, color_fill);
+    case GROUPING:
+        fancy_rect(sx, sy, width, height, W_SUNKEN_OUTER);
+        fancy_rect(sx + 1, sy + 1, width - 2, height - 2, W_RAISED_INNER);
+        st7789_fill(sx + 2, sy + 2, width - 4, height - 4, color_fill);
+        break;
+
+    default:
+        break;
+    }
+}
+
+void paint_dialog(char *title)
+{
+    fancy_rect(0, 0, 240, 135, WINDOW);
+    st7789_fill(3, 3, 240 - 7, 19, COLOR_DKBLUE);
+    fancy_rect(240 - 21, 6, 15, 14, BUTTON);
+    font_string(240 - 21 + 3, 7, "\x01", COLOR_BLACK, color_fill, false);
+    font_string(5, 5, title, COLOR_WHITE, COLOR_DKBLUE, true);
+}
+
+
 // Initialize the display
 void st7789_init()
 {
     uint16_t count;
     uint16_t col;
     st7789_gpio_init();
-    st7789_disp_init(39, 53, 240, 135);
+    st7789_disp_init(40, 53, 240, 135);
     st7789_fill(0, 0, 240, 135, 0x0040); // Clear screen
 
     // Pixel format: BGR (15-0) 5:6:5.
@@ -264,8 +387,11 @@ void st7789_init()
         pset(count, count, 0xFFFF);
     }
 
-    st7789_bitblt_rot(0, 0, 240, 135, (uint16_t *)image_data);
-    font_string(10, 10, "ABCDEFGHIJKLMNOP\0", 0xffff, 0x0000, true);
+//    st7789_bitblt_rot(0, 0, 240, 135, (uint16_t *)image_data);
+    paint_dialog("Dialog Box X");
+    fancy_rect(20, 30, 210, 40, GROUPING);
+    fancy_rect(30, 40, 170, 19, FIELD);
+    font_string(33, 43, "Hello World Text Box jg", 0x0000, 0xffff, false);
 #if 0
     while (1) {
         for (count = 0; count < 36; count++) {
