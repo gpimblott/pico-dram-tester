@@ -3,8 +3,14 @@
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
 
+#include "st7789.h"
+
 #include "rtc_image.h"
-#include "prop_font.h"
+//#include "prop_font.h"
+#include "sserif13.h"
+#include "sserif16.h"
+#include "sserif20.h"
+#include "widgets16.h"
 
 #define PIN_SPI_CS 17
 #define PIN_SPI_SCK 18
@@ -199,8 +205,25 @@ static void pset(uint16_t x, uint16_t y, uint16_t col)
     cs_high();
 }
 
+// Get the width of a string using a particular font
+uint16_t font_string_width(char *text, const font_def_t *font, bool bold)
+{
+    uint16_t total_width = 0;
+
+    while (*text) {
+        if (*text >= font->count) {
+            text++;
+            continue;
+        }
+        total_width += font->widths[*(text++)] + (bold ? 1 : 0);
+    }
+    return total_width;
+}
+
 // Draws a string at the specific coordinates using the default font
-void font_string(uint16_t x, uint16_t y, char *text, uint16_t fg_color, uint16_t bg_color, bool bold)
+void font_string(uint16_t x, uint16_t y, char *text,
+                 uint16_t fg_color, uint16_t bg_color,
+                 const font_def_t *font, bool bold)
 {
     uint8_t row, col;
     uint16_t total_width, width;
@@ -211,21 +234,11 @@ void font_string(uint16_t x, uint16_t y, char *text, uint16_t fg_color, uint16_t
     uint8_t col_count;
     char *text_buf = text;
     uint8_t prev_bit;
-    uint8_t f_height;
-
-    // Hack for dialog elements which would be too tall
-    if (*text < 32) {
-        f_height = 11;
-    } else {
-        f_height = font_height;
-    }
 
     // First, compute total width
-    while (*text_buf) {
-        total_width += font_width_table[*(text_buf++)] + (bold ? 1 : 0);
-    }
+    total_width = font_string_width(text, font, bold);
 
-    for (row = 0; row < f_height; row++) {
+    for (row = 0; row < font->height; row++) {
         // Set the window
         cs_low();
         st7789_window(x, y + row, total_width, 1, false);
@@ -235,14 +248,18 @@ void font_string(uint16_t x, uint16_t y, char *text, uint16_t fg_color, uint16_t
         text_buf = text;
         while (*text_buf) {
             // Get information about this character
-            width = font_width_table[*text_buf];
+            if (*text_buf >= font->count) {
+                text_buf++; // Skip if invalid
+                continue;
+            }
+            width = font->widths[*text_buf];
             bytes_column = (width + 7) >> 3;
-            offset = font_offset_table[*text_buf];
+            offset = font->offsets[*text_buf];
             // Get exact byte offset into the character table
             offset += row * bytes_column;
             prev_bit = 0;
             for (byte = 0; byte < bytes_column; byte++) {
-                db = font_data_table[offset + byte];
+                db = font->data[offset + byte];
                 col_count = (width > 8) ? 8 : width;
                 for (col = 0; col < col_count; col++) {
                     if ((db & 0x1) || (bold && (prev_bit == 1))) {
@@ -359,13 +376,26 @@ void fancy_rect(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, e_sty
     }
 }
 
+// Draws a button
+void paint_button(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height,
+                  char *text, const font_def_t *font, bool bold)
+{
+    uint16_t twidth = font_string_width(text, font, bold);
+    uint16_t theight = font->height;
+    uint16_t tsx = sx + (width / 2) - (twidth / 2);
+    uint16_t tsy = sy + (height / 2) - (theight / 2);
+
+    fancy_rect(sx, sy, width, height, BUTTON);
+    font_string(tsx, tsy, text, COLOR_BLACK, color_fill, font, bold);
+}
+
+// Draws a dialog box
 void paint_dialog(char *title)
 {
     fancy_rect(0, 0, 240, 135, WINDOW);
-    st7789_fill(3, 3, 240 - 7, 19, COLOR_DKBLUE);
-    fancy_rect(240 - 21, 6, 15, 14, BUTTON);
-    font_string(240 - 21 + 3, 7, "\x01", COLOR_BLACK, color_fill, false);
-    font_string(5, 5, title, COLOR_WHITE, COLOR_DKBLUE, true);
+    st7789_fill(3, 3, 240 - 7, 26, COLOR_DKBLUE);
+    paint_button(240 - 6 - 21, 6, 21, 21,"\x01", &widgets16, false);
+    font_string(5, 5, title, COLOR_WHITE, COLOR_DKBLUE, &sserif20, true);
 }
 
 
@@ -388,10 +418,11 @@ void st7789_init()
     }
 
 //    st7789_bitblt_rot(0, 0, 240, 135, (uint16_t *)image_data);
-    paint_dialog("Dialog Box X");
-    fancy_rect(20, 30, 210, 40, GROUPING);
-    fancy_rect(30, 40, 170, 19, FIELD);
-    font_string(33, 43, "Hello World Text Box jg", 0x0000, 0xffff, false);
+    paint_dialog("Dialog Box");
+    fancy_rect(20, 30, 210, 45, GROUPING);
+    fancy_rect(30, 40, 170, 26, FIELD);
+    font_string(33, 43, "Hello World Text Box", 0x0000, 0xffff, &sserif20, false);
+    paint_button(45, 100, 90, 25, "OK", &sserif20, false);
 #if 0
     while (1) {
         for (count = 0; count < 36; count++) {
