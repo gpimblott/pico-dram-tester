@@ -176,6 +176,28 @@ void st7789_fill(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, uint
     cs_high();
 }
 
+// Fill with 50% halftone
+void st7789_halftone_fill(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, uint16_t c1, uint16_t c2)
+{
+    int row, col;
+    uint8_t rowstate = 0;
+    uint8_t colstate = 0;
+    for (row = 0; row < height; row++) {
+        rowstate = ~rowstate;
+        colstate = rowstate;
+        cs_low();
+        st7789_window(sx, sy + row, width, 1, false);
+        write_command(CMD_RAMWR, 0, NULL, false);
+        hw_write_masked(&spi_get_hw(spi0)->cr0, 15 << SPI_SSPCR0_DSS_LSB, SPI_SSPCR0_DSS_BITS);
+        for (col = 0; col < width; col++) {
+            colstate = ~colstate;
+            spi_write16_blocking(spi0, (colstate) ? &c1 : &c2, 1);
+        }
+        hw_write_masked(&spi_get_hw(spi0)->cr0, 7 << SPI_SSPCR0_DSS_LSB, SPI_SSPCR0_DSS_BITS);
+        cs_high();
+    }
+}
+
 // Plots a bitmap. Must be 16bpp and match the display type (BGR 565)
 void st7789_bitblt(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, uint16_t *buf)
 {
@@ -398,6 +420,37 @@ void paint_dialog(char *title)
     font_string(5, 5, title, COLOR_WHITE, COLOR_DKBLUE, &sserif20, true);
 }
 
+// Lines visible
+// Lines available
+// Starting line
+#define MIN_SCROLL_HEIGHT 10
+void paint_scrollbar(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height,
+                     uint32_t vis, uint32_t tot, uint32_t pos)
+{
+    // Position of marker
+    uint32_t avail = height - 21 * 2; // Pixels representing the "total" scrollbar area
+    uint32_t sb_height = avail * vis / tot; // Compute scrollbar height
+    uint32_t start_pos;
+
+    if (vis >= tot) {
+        pos = 0;
+        sb_height = avail;
+    } else {
+        if (pos > tot - vis) { // Is position out of range?
+            pos = tot - vis;
+        }
+    }
+    start_pos = pos * (avail / tot);
+
+    // Buttons
+    paint_button(sx, sy, width, 21, "\x03", &widgets16, false);
+    paint_button(sx, sy + height - 21, width, 21, "\x02", &widgets16, false);
+    st7789_halftone_fill(sx, sy + 21, width, height - 21 - 21, COLOR_WHITE, color_fill);
+    // Position marker. Only show if there is room.
+    if (sb_height >= MIN_SCROLL_HEIGHT) {
+        paint_button(sx, sy + 21 + start_pos, width, sb_height, "\x00", &widgets16, false);
+    }
+}
 
 // Initialize the display
 void st7789_init()
@@ -406,23 +459,29 @@ void st7789_init()
     uint16_t col;
     st7789_gpio_init();
     st7789_disp_init(40, 53, 240, 135);
-    st7789_fill(0, 0, 240, 135, 0x0040); // Clear screen
 
+    st7789_fill(0, 0, 240, 135, 0x001F); // Clear screen
+
+#if 0
     // Pixel format: BGR (15-0) 5:6:5.
     for (count = 0; count < 64; count++) {
         st7789_fill(0, count, 100, 1, count << 11); // horizontal line
     }
+#endif
 
     for (count = 0; count < 60; count++) {
         pset(count, count, 0xFFFF);
     }
 
 //    st7789_bitblt_rot(0, 0, 240, 135, (uint16_t *)image_data);
-    paint_dialog("Dialog Box");
-    fancy_rect(20, 30, 210, 45, GROUPING);
-    fancy_rect(30, 40, 170, 26, FIELD);
-    font_string(33, 43, "Hello World Text Box", 0x0000, 0xffff, &sserif20, false);
-    paint_button(45, 100, 90, 25, "OK", &sserif20, false);
+
+      paint_dialog("Dialog Box");
+      fancy_rect(3, 30, 210, 72, GROUPING);
+      fancy_rect(7, 40, 190, 52, FIELD);
+      font_string(9, 43, "Hello World Text Box", 0x0000, 0xffff, &sserif20, false);
+      paint_button(45, 105, 90, 25, "OK", &sserif20, false);
+      paint_scrollbar(7+190-2-23, 40+2, 23, 52 - 4, 1, 2, 0);
+//      fancy_rect(5, 5, 8, 8, FIELD);
 #if 0
     while (1) {
         for (count = 0; count < 36; count++) {
