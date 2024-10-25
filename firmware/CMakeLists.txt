@@ -23,6 +23,6 @@ pico_generate_pio_header(pmemtest ${CMAKE_CURRENT_LIST_DIR}/pmemtest.pio)
 
 target_sources(pmemtest PRIVATE pmemtest.c st7789.c gui.c)
 
-target_link_libraries(pmemtest PRIVATE pico_stdlib hardware_pio hardware_spi)
+target_link_libraries(pmemtest PRIVATE pico_stdlib pico_multicore hardware_pio hardware_spi)
 
 pico_add_extra_outputs(pmemtest)

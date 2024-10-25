@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "pico/stdlib.h"
+#include "pico/multicore.h"
+#include "pico/util/queue.h"
 #include "hardware/pio.h"
 // Our assembled program:
 #include "pmemtest.pio.h"
 #include "st7789.h"
-#include "sserif13.h"
 #include "chip_icon.h"
 #include "gui.h"
 
@@ -38,6 +39,37 @@ typedef enum {
 } gui_state_t;
 
 gui_state_t gui_state = MAIN_MENU;
+
+// Function queue entry for dispatching worker functions
+typedef struct
+{
+    uint32_t (*func)(uint32_t);
+    uint32_t data;
+} queue_entry_t;
+
+queue_t call_queue;
+queue_t results_queue;
+
+// Entry point for second core. This is just a generic
+// function dispatcher lifted from the Raspberry Pi example code.
+void core1_entry() {
+    while (1) {
+        // Function pointer is passed to us via the queue_entry_t which also
+        // contains the function parameter.
+        // We provide an int32_t return value by simply pushing it back on the
+        // return queue which also indicates the result is ready.
+
+        queue_entry_t entry;
+
+        queue_remove_blocking(&call_queue, &entry);
+
+        int32_t result = entry.func(entry.data);
+
+        queue_add_blocking(&results_queue, &result);
+    }
+}
+
+
 
 // Routines for reading and writing memory.
 int ram_read(int addr)
@@ -160,7 +192,7 @@ static inline bool march_element(int addr_size, bool descending, int algorithm)
     return true;
 }
 
-bool marchb_test(int addr_size)
+uint32_t marchb_test(uint32_t addr_size)
 {
     bool ret = true;
     printf("M0 ");
@@ -178,7 +210,7 @@ bool marchb_test(int addr_size)
     printf("M4 ");
     ret = march_element(addr_size, true, 4);
     if (!ret) return false;
-    return ret;
+    return (uint32_t)ret;
 }
 
 int ram_toggle_check(int range, uint expected)
@@ -213,6 +245,23 @@ int ramtest(int range)
 }
 
 // Also need some testing algorithms... :)
+
+// Sets up PIO with a particular RAM test.
+void prepare_ram_pio()
+{
+    uint pin = 5;
+    uint offset; // Returns offset of starting instruction
+    bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(&pmemtest_program, &pio, &sm, &offset, pin, 17, true);
+    pmemtest_program_init(pio, sm, offset, pin);
+    pio_sm_set_enabled(pio, sm, true);
+
+}
+
+void stop_ram_pio()
+{
+    pio_sm_set_enabled(pio, sm, false);
+    // FIXME: ensure GPIO pins are all in the right state
+}
 
 typedef struct {
     uint32_t pin;
@@ -264,6 +313,94 @@ void show_speed_menu()
     gui_listbox(cur_menu, LIST_ACTION_NONE);
 }
 
+typedef enum {
+    UNTESTED,
+    TESTING,
+    PASSED,
+    FAILED
+} test_status_t;
+
+#define CELL_STAT_X 9
+#define CELL_STAT_Y 33
+
+// Used to update the RAM test GUI left pane
+void update_test_gui(uint16_t addr, test_status_t status)
+{
+    uint16_t cx, cy, col;
+    cx = addr & 0x1f;
+    cy = (addr >> 5) & 0x1f; // 10 bits are used
+    switch (status) {
+        case UNTESTED:
+            col = COLOR_BLACK; // Untested
+            break;
+        case TESTING:
+            col = COLOR_CYAN;
+            break;
+        case PASSED:
+            col = COLOR_GREEN;
+            break;
+        case FAILED:
+            col = COLOR_RED;
+            break;
+    }
+    st7789_fill(CELL_STAT_X + cx * 3, CELL_STAT_Y + cy * 3, 2, 2, col);
+}
+
+// Show the RAM test console GUI
+void show_test_gui()
+{
+    uint16_t cx, cy;
+    paint_dialog("Testing...");
+
+    // Cell status area. 32x32 elements.
+    fancy_rect(7, 31, 100, 100, B_SUNKEN_OUTER); // Usable size is 220x80.
+    fancy_rect(8, 32, 98, 98, B_SUNKEN_INNER);
+    st7789_fill(9, 33, 96, 96, COLOR_BLACK);
+    for (cx = 0; cx < 32; cx++) {
+        for (cy = 0; cy < 32; cy++) {
+            st7789_fill(CELL_STAT_X + cx * 3, CELL_STAT_Y + cy * 3, 2, 2, COLOR_GREEN);
+        }
+    }
+
+    // Current test indicator
+    paint_status(120, 45, 100, "March B");
+
+    // TODO: Add a nice icon or animation
+}
+
+void start_the_ram_test()
+{
+    // TODO: Get the power turned on
+
+    // Get the PIO going
+    prepare_ram_pio();
+
+    // Dispatch the second core
+    queue_entry_t entry = {marchb_test, 65535};
+    queue_add_blocking(&call_queue, &entry);
+}
+
+// During a RAM test, updates the status window and checks for the end of the test
+void do_status()
+{
+    uint32_t retval;
+    char retstring[30];
+    if (gui_state == DO_TEST) {
+    // Check official status
+        if (!queue_is_empty(&results_queue)) {
+            stop_ram_pio();
+            // The RAM test completed, so let's handle that
+            sleep_ms(100);
+            queue_remove_blocking(&results_queue, &retval);
+            // We'll create a new dialog and state
+            gui_state = TEST_RESULTS;
+            sprintf(retstring, "Test was %d.", retval);
+            gui_messagebox("Results", retstring, &chip_icon);
+        }
+        // TODO: Visualizations
+    }
+}
+
 // Called when user presses the action button
 void button_action()
 {
@@ -280,9 +417,13 @@ void button_action()
             break;
         case DO_SOCKET:
             gui_state = DO_TEST;
-            paint_dialog("Testing...");
+            show_test_gui();
+            start_the_ram_test();
             break;
         case DO_TEST:
+            break;
+        case TEST_RESULTS:
+            // Maybe run the test again?
             break;
         default:
             gui_state = MAIN_MENU;
@@ -308,6 +449,10 @@ void button_back()
             gui_state = SPEED_MENU;
             show_speed_menu();
             break;
+        case TEST_RESULTS:
+            gui_state = MAIN_MENU;
+            show_main_menu();
+            break;
         default:
             gui_state = MAIN_MENU;
             break;
@@ -328,7 +473,7 @@ void wheel_print()
 {
     char a[] = "          ";
     sprintf(a, "%d  ", wheel_val);
-    font_string(9, 43, a, 255, 0x0000, 0xffff, &sserif13, false);
+ //   font_string(9, 43, a, 255, 0x0000, 0xffff, &sserif20, false);
 }
 
 void wheel_increment()
@@ -387,7 +532,6 @@ void init_buttons_encoder()
 }
 
 int main() {
-    uint pin = 5; // Starting GPIO for memory interface
     uint offset;
     uint16_t addr;
     uint8_t db = 0;
@@ -402,6 +546,13 @@ int main() {
 
     //printf("Test.\n");
 
+    // Set up second core
+    queue_init(&call_queue, sizeof(queue_entry_t), 2);
+    queue_init(&results_queue, sizeof(int32_t), 2);
+
+    // Second core will wait for the call queue.
+    multicore_launch_core1(core1_entry);
+
     // Init display
     st7789_init();
     cur_menu = &main_menu;
@@ -412,11 +563,8 @@ int main() {
     while(1) {
         do_encoder();
         do_buttons();
+        do_status();
     }
-
-    bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(&pmemtest_program, &pio, &sm, &offset, pin, 2, true);
-    pmemtest_program_init(pio, sm, offset, pin);
-    pio_sm_set_enabled(pio, sm, true);
 
     while(1) {
         //retval = ramtest(65536);

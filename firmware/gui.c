@@ -24,22 +24,7 @@ void shadow_rect(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, uint
     st7789_fill(sx            , sy + height - 1, width,     1,          br);
 }
 
-typedef enum {
-    W_RAISED_OUTER,
-    W_RAISED_INNER,
-    W_SUNKEN_OUTER,
-    W_SUNKEN_INNER,
-    WINDOW,
-    B_RAISED_OUTER,
-    B_RAISED_INNER,
-    B_SUNKEN_OUTER,
-    B_SUNKEN_INNER,
-    BUTTON,
-    FIELD,
-    STATUS,
-    GROUPING
-} rstyle_t;
-
+// Draw a fancy shaded rectangle
 void fancy_rect(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, rstyle_t style)
 {
     switch (style) {
@@ -106,6 +91,12 @@ void paint_button(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height,
 
     fancy_rect(sx, sy, width, height, BUTTON);
     font_string(tsx, tsy, text, 255, COLOR_BLACK, color_fill, font, bold);
+}
+
+void paint_status(uint16_t sx, uint16_t sy, uint16_t width, char *text)
+{
+    fancy_rect(sx, sy, width, sserif20.height + 4, STATUS);
+    font_string(sx+2, sy+2, text, 255, COLOR_BLACK, color_fill, &sserif20, false);
 }
 
 // Draws a dialog box

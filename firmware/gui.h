@@ -19,6 +19,22 @@
 #define COLOR_YELLOW 0x57ff
 #define COLOR_WHITE 0xffff
 
+typedef enum {
+    W_RAISED_OUTER,
+    W_RAISED_INNER,
+    W_SUNKEN_OUTER,
+    W_SUNKEN_INNER,
+    WINDOW,
+    B_RAISED_OUTER,
+    B_RAISED_INNER,
+    B_SUNKEN_OUTER,
+    B_SUNKEN_INNER,
+    BUTTON,
+    FIELD,
+    STATUS,
+    GROUPING
+} rstyle_t;
+
 typedef struct {
     uint16_t sx;
     uint16_t sy;
@@ -36,9 +52,10 @@ typedef enum {
     LIST_ACTION_UP
 } list_action_t;
 
-
+void fancy_rect(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, rstyle_t style);
 void paint_button(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height,
                   char *text, const font_def_t *font, bool bold);
+void paint_status(uint16_t sx, uint16_t sy, uint16_t width, char *text);
 void paint_dialog(char *title);
 uint8_t gui_listbox(gui_listbox_t *lb, list_action_t act);
 void gui_messagebox(char *title, char *contents, const ico_def_t *icon);
