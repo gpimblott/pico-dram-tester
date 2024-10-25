@@ -8,16 +8,16 @@
 #include "rtc_image.h"
 //#include "prop_font.h"
 //#include "sserif13.h"
-#include "sserif16.h"
-#include "sserif20.h"
-#include "widgets16.h"
+//#include "sserif16.h"
+//#include "sserif20.h"
+//#include "widgets16.h"
 
 #define PIN_SPI_CS 1
 #define PIN_SPI_SCK 2
 #define PIN_SPI_DO 3
 #define PIN_SPI_DC 0
 
-#define PIN_7789_RST 6 // FIXME no more reset
+//#define PIN_7789_RST 6 // FIXME no more reset
 
 #define RESET_DELAY 140
 
@@ -125,11 +125,11 @@ static void st7789_gpio_init()
     gpio_set_dir(PIN_SPI_DC, GPIO_OUT);
     gpio_put(PIN_SPI_DC, 0);
 
-    gpio_init(PIN_7789_RST);
-    gpio_set_dir(PIN_7789_RST, GPIO_OUT);
-    gpio_put(PIN_7789_RST, 0);
+//    gpio_init(PIN_7789_RST);
+//    gpio_set_dir(PIN_7789_RST, GPIO_OUT);
+//    gpio_put(PIN_7789_RST, 0);
     sleep_ms(RESET_DELAY);
-    gpio_put(PIN_7789_RST, 1);
+//    gpio_put(PIN_7789_RST, 1);
 
 }
 
@@ -311,147 +311,6 @@ void font_string(uint16_t x, uint16_t y, char *text,
     }
 }
 
-// Colors for fancy rectangles
-uint16_t color_fill = COLOR_LTGRAY;
-uint16_t color_outline = COLOR_BLACK;
-uint16_t color_shadow = COLOR_DKGRAY;
-uint16_t color_highlight = COLOR_WHITE;
-uint16_t color_field = COLOR_WHITE;
-
-// Two-color rectangle
-void shadow_rect(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, uint16_t tl, uint16_t br)
-{
-    st7789_fill(sx,             sy,              width - 1, 1,          tl);
-    st7789_fill(sx,             sy,              1,         height - 1, tl);
-    st7789_fill(sx + width - 1, sy,              1,         height,     br);
-    st7789_fill(sx            , sy + height - 1, width,     1,          br);
-}
-
-typedef enum {
-    W_RAISED_OUTER,
-    W_RAISED_INNER,
-    W_SUNKEN_OUTER,
-    W_SUNKEN_INNER,
-    WINDOW,
-    B_RAISED_OUTER,
-    B_RAISED_INNER,
-    B_SUNKEN_OUTER,
-    B_SUNKEN_INNER,
-    BUTTON,
-    FIELD,
-    STATUS,
-    GROUPING
-} e_style;
-
-void fancy_rect(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, e_style style)
-{
-    switch (style) {
-    case W_RAISED_OUTER:
-        shadow_rect(sx, sy, width, height, color_fill, color_outline);
-        break;
-    case W_RAISED_INNER:
-        shadow_rect(sx, sy, width, height, color_highlight, color_shadow);
-        break;
-    case W_SUNKEN_OUTER:
-        shadow_rect(sx, sy, width, height, color_shadow, color_highlight);
-        break;
-    case W_SUNKEN_INNER:
-        shadow_rect(sx, sy, width, height, color_outline, color_fill);
-        break;
-    case B_RAISED_OUTER:
-        shadow_rect(sx, sy, width, height, color_highlight, color_outline);
-        break;
-    case B_RAISED_INNER:
-        shadow_rect(sx, sy, width, height, color_fill, color_shadow);
-        break;
-    case B_SUNKEN_OUTER:
-        shadow_rect(sx, sy, width, height, color_outline, color_highlight);
-        break;
-    case B_SUNKEN_INNER:
-        shadow_rect(sx, sy, width, height, color_shadow, color_fill);
-        break;
-    case WINDOW:
-        fancy_rect(sx, sy, width, height, W_RAISED_OUTER);
-        fancy_rect(sx + 1, sy + 1, width - 2, height - 2, W_RAISED_INNER);
-        st7789_fill(sx + 2, sy + 2, width - 4, height - 4, color_fill);
-    case BUTTON:
-        fancy_rect(sx, sy, width, height, B_RAISED_OUTER);
-        fancy_rect(sx + 1, sy + 1, width - 2, height - 2, B_RAISED_INNER);
-        st7789_fill(sx + 2, sy + 2, width - 4, height - 4, color_fill);
-        break;
-    case FIELD:
-        fancy_rect(sx, sy, width, height, B_SUNKEN_OUTER);
-        fancy_rect(sx + 1, sy + 1, width - 2, height - 2, B_SUNKEN_INNER);
-        st7789_fill(sx + 2, sy + 2, width - 4, height - 4, color_field);
-        break;
-    case STATUS:
-        fancy_rect(sx, sy, width, height, B_SUNKEN_OUTER);
-        st7789_fill(sx + 1, sy + 1, width - 1, height - 1, color_fill);
-    case GROUPING:
-        fancy_rect(sx, sy, width, height, W_SUNKEN_OUTER);
-        fancy_rect(sx + 1, sy + 1, width - 2, height - 2, W_RAISED_INNER);
-        st7789_fill(sx + 2, sy + 2, width - 4, height - 4, color_fill);
-        break;
-
-    default:
-        break;
-    }
-}
-
-// Draws a button
-void paint_button(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height,
-                  char *text, const font_def_t *font, bool bold)
-{
-    uint16_t twidth = font_string_width(text, font, bold);
-    uint16_t theight = font->height;
-    uint16_t tsx = sx + (width / 2) - (twidth / 2);
-    uint16_t tsy = sy + (height / 2) - (theight / 2);
-
-    fancy_rect(sx, sy, width, height, BUTTON);
-    font_string(tsx, tsy, text, COLOR_BLACK, color_fill, font, bold);
-}
-
-// Draws a dialog box
-void paint_dialog(char *title)
-{
-    fancy_rect(0, 0, 240, 135, WINDOW);
-    st7789_fill(3, 3, 240 - 7, 26, COLOR_DKBLUE);
-    paint_button(240 - 6 - 21, 6, 21, 21,"\x01", &widgets16, false);
-    font_string(5, 5, title, COLOR_WHITE, COLOR_DKBLUE, &sserif20, true);
-}
-
-// Lines visible
-// Lines available
-// Starting line
-#define MIN_SCROLL_HEIGHT 10
-void paint_scrollbar(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height,
-                     uint32_t vis, uint32_t tot, uint32_t pos)
-{
-    // Position of marker
-    uint32_t avail = height - 21 * 2; // Pixels representing the "total" scrollbar area
-    uint32_t sb_height = avail * vis / tot; // Compute scrollbar height
-    uint32_t start_pos;
-
-    if (vis >= tot) {
-        pos = 0;
-        sb_height = avail;
-    } else {
-        if (pos > tot - vis) { // Is position out of range?
-            pos = tot - vis;
-        }
-    }
-    start_pos = pos * (avail / tot);
-
-    // Buttons
-    paint_button(sx, sy, width, 21, "\x03", &widgets16, false);
-    paint_button(sx, sy + height - 21, width, 21, "\x02", &widgets16, false);
-    st7789_halftone_fill(sx, sy + 21, width, height - 21 - 21, COLOR_WHITE, color_fill);
-    // Position marker. Only show if there is room.
-    if (sb_height >= MIN_SCROLL_HEIGHT) {
-        paint_button(sx, sy + 21 + start_pos, width, sb_height, "\x00", &widgets16, false);
-    }
-}
-
 // Initialize the display
 void st7789_init()
 {
@@ -469,29 +328,6 @@ void st7789_init()
     }
 #endif
 
-    for (count = 0; count < 60; count++) {
-        pset(count, count, 0xFFFF);
-    }
-
 //    st7789_bitblt_rot(0, 0, 240, 135, (uint16_t *)image_data);
 
-      paint_dialog("Dialog Box");
-      fancy_rect(3, 30, 210, 72, GROUPING);
-      fancy_rect(7, 40, 190, 52, FIELD);
-      font_string(9, 43, "Hello World Text Box", 0x0000, 0xffff, &sserif20, false);
-      paint_button(45, 105, 90, 25, "OK", &sserif20, false);
-      paint_scrollbar(7+190-2-23, 40+2, 23, 52 - 4, 1, 2, 0);
-//      fancy_rect(5, 5, 8, 8, FIELD);
-#if 0
-    while (1) {
-        for (count = 0; count < 36; count++) {
-            st7789_bitblt_rot(0, count, 240, 100, (uint16_t *)image_data);
- //           sleep_ms(0);
-        }
-        for (count = 35; count > 0; count--) {
-            st7789_bitblt_rot(0, count, 240, 100, (uint16_t *)image_data);
-//            sleep_ms(0);
-        }
-    }
-#endif
 }

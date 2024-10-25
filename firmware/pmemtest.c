@@ -6,6 +6,7 @@
 #include "pmemtest.pio.h"
 #include "st7789.h"
 #include "sserif13.h"
+#include "gui.h"
 
 PIO pio;
 uint sm = 0;
@@ -14,6 +15,11 @@ uint sm = 0;
 #define GPIO_QUAD_B 26
 #define GPIO_QUAD_BTN 27
 #define GPIO_BACK_BTN 28
+
+const char *main_menu_items[] = {"Item one", "Item two", "Item three", "Item four",
+                                 "Item five", "Item six", "Item seven", "Item eight",
+                                 "Item nine", "Item ten" };
+gui_listbox_t main_menu = {7, 40, 220, 10, 4, 0, 0, main_menu_items};
 
 // Routines for reading and writing memory.
 int ram_read(int addr)
@@ -261,13 +267,15 @@ void wheel_print()
 void wheel_increment()
 {
     wheel_val++;
-    wheel_print();
+//    wheel_print();
+    gui_listbox(&main_menu, LIST_ACTION_DOWN);
 }
 
 void wheel_decrement()
 {
     wheel_val--;
-    wheel_print();
+//    wheel_print();
+    gui_listbox(&main_menu, LIST_ACTION_UP);
 }
 
 void do_encoder()
@@ -327,6 +335,9 @@ int main() {
 
     // Init display
     st7789_init();
+//    gui_demo();
+    paint_dialog("Select Device");
+    gui_listbox(&main_menu, LIST_ACTION_NONE);
     init_buttons_encoder();
     while(1) {
         do_encoder();
