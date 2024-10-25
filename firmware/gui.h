@@ -41,6 +41,7 @@ void paint_button(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height,
                   char *text, const font_def_t *font, bool bold);
 void paint_dialog(char *title);
 uint8_t gui_listbox(gui_listbox_t *lb, list_action_t act);
+void gui_messagebox(char *title, char *contents, const ico_def_t *icon);
 
 void gui_demo();
 

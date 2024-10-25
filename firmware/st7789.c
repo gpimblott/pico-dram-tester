@@ -229,22 +229,26 @@ static void pset(uint16_t x, uint16_t y, uint16_t col)
 }
 
 // Get the width of a string using a particular font
-uint16_t font_string_width(char *text, const font_def_t *font, bool bold)
+uint16_t font_string_width(char *text, uint16_t max_len, const font_def_t *font, bool bold)
 {
+    char *text_buf = text;
     uint16_t total_width = 0;
 
-    while (*text) {
-        if (*text >= font->count) {
-            text++;
+    while (*text_buf) {
+        if (*text_buf >= font->count) {
+            text_buf++;
             continue;
         }
-        total_width += font->widths[*(text++)] + (bold ? 1 : 0);
+        if (text_buf >= text + max_len) {
+            break;
+        }
+        total_width += font->widths[*(text_buf++)] + (bold ? 1 : 0);
     }
     return total_width;
 }
 
 // Draws a string at the specific coordinates using the default font
-void font_string(uint16_t x, uint16_t y, char *text,
+void font_string(uint16_t x, uint16_t y, char *text, uint16_t max_len,
                  uint16_t fg_color, uint16_t bg_color,
                  const font_def_t *font, bool bold)
 {
@@ -259,7 +263,7 @@ void font_string(uint16_t x, uint16_t y, char *text,
     uint8_t prev_bit;
 
     // First, compute total width
-    total_width = font_string_width(text, font, bold);
+    total_width = font_string_width(text, max_len, font, bold);
 
     for (row = 0; row < font->height; row++) {
         // Set the window
@@ -274,6 +278,9 @@ void font_string(uint16_t x, uint16_t y, char *text,
             if (*text_buf >= font->count) {
                 text_buf++; // Skip if invalid
                 continue;
+            }
+            if (text_buf >= text + max_len) {
+                break;
             }
             width = font->widths[*text_buf];
             bytes_column = (width + 7) >> 3;

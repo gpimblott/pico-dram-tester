@@ -29,6 +29,16 @@ gui_listbox_t main_menu = {7, 40, 220, MAIN_MENU_ITEMS, 4, 0, 0, main_menu_items
 const char *speed_menu_items[] = {"80ns", "100ns", "120ns", "150ns", "200ns", "250ns", "300ns"};
 gui_listbox_t speed_menu = {7, 40, 220, SPEED_MENU_ITEMS, 4, 0, 0, speed_menu_items};
 
+typedef enum {
+    MAIN_MENU,
+    SPEED_MENU,
+    DO_SOCKET,
+    DO_TEST,
+    TEST_RESULTS
+} gui_state_t;
+
+gui_state_t gui_state = MAIN_MENU;
+
 // Routines for reading and writing memory.
 int ram_read(int addr)
 {
@@ -239,36 +249,68 @@ bool is_button_pushed(pin_debounce_t *pin_b)
     return false;
 }
 
+
+void show_main_menu()
+{
+    cur_menu = &main_menu;
+    paint_dialog("Select Device");
+    gui_listbox(cur_menu, LIST_ACTION_NONE);
+}
+
+void show_speed_menu()
+{
+    cur_menu = &speed_menu;
+    paint_dialog("Select Speed Grade");
+    gui_listbox(cur_menu, LIST_ACTION_NONE);
+}
+
 // Called when user presses the action button
 void button_action()
 {
-//    font_string(9, 56, "ACT", 0x0000, 0xffff, &sserif13, false);
-//    sleep_ms(100);
-//    st7789_fill(9, 56, 50, 13, 0xffff);
     // Do something based on the current menu
-    if (cur_menu == &main_menu) {
-        cur_menu = &speed_menu;
-        paint_dialog("Select Speed Grade");
-        gui_listbox(cur_menu, LIST_ACTION_NONE);
-    } else if (cur_menu == &speed_menu) {
-        // TODO: Refactor this into a nice clean ShowDialog() type routine
-        paint_dialog("Place Chip in Socket");
-        draw_icon(20, 60, &chip_icon);
-        font_string(70, 60, "Choose the correct socket", 0x0000, COLOR_LTGRAY, &sserif13, false);
-        font_string(70, 73, "and check pin 1 orientation", 0x0000, COLOR_LTGRAY, &sserif13, false);
+    switch (gui_state) {
+        case MAIN_MENU:
+            gui_state = SPEED_MENU;
+            show_speed_menu();
+            break;
+        case SPEED_MENU:
+            gui_messagebox("Place Chip in Socket",
+                           "Turn on external supply afterwards, if used.", &chip_icon);
+            gui_state = DO_SOCKET;
+            break;
+        case DO_SOCKET:
+            gui_state = DO_TEST;
+            paint_dialog("Testing...");
+            break;
+        case DO_TEST:
+            break;
+        default:
+            gui_state = MAIN_MENU;
+            break;
     }
 }
 
 // Called when the user presses the back button
 void button_back()
 {
-//    font_string(9, 69, "BACK", 0x0000, 0xffff, &sserif13, false);
-//    sleep_ms(100);
-//    st7789_fill(9, 69, 50, 12, 0xffff);
-    if (cur_menu = &speed_menu) {
-        cur_menu = &main_menu;
-        paint_dialog("Select Device");
-        gui_listbox(cur_menu, LIST_ACTION_NONE);
+    switch (gui_state) {
+        case MAIN_MENU:
+            break;
+        case SPEED_MENU:
+            gui_state = MAIN_MENU;
+            show_main_menu();
+            break;
+        case DO_SOCKET:
+            gui_state = SPEED_MENU;
+            show_speed_menu();
+            break;
+        case DO_TEST:
+            gui_state = SPEED_MENU;
+            show_speed_menu();
+            break;
+        default:
+            gui_state = MAIN_MENU;
+            break;
     }
 }
 
@@ -286,21 +328,23 @@ void wheel_print()
 {
     char a[] = "          ";
     sprintf(a, "%d  ", wheel_val);
-    font_string(9, 43, a, 0x0000, 0xffff, &sserif13, false);
+    font_string(9, 43, a, 255, 0x0000, 0xffff, &sserif13, false);
 }
 
 void wheel_increment()
 {
     wheel_val++;
-//    wheel_print();
-    gui_listbox(cur_menu, LIST_ACTION_DOWN);
+    if (gui_state == MAIN_MENU || gui_state == SPEED_MENU) {
+        gui_listbox(cur_menu, LIST_ACTION_DOWN);
+    }
 }
 
 void wheel_decrement()
 {
     wheel_val--;
-//    wheel_print();
-    gui_listbox(cur_menu, LIST_ACTION_UP);
+    if (gui_state == MAIN_MENU || gui_state == SPEED_MENU) {
+        gui_listbox(cur_menu, LIST_ACTION_UP);
+    }
 }
 
 void do_encoder()
@@ -361,7 +405,7 @@ int main() {
     // Init display
     st7789_init();
     cur_menu = &main_menu;
-//    gui_demo();
+ //   gui_demo();
     paint_dialog("Select Device");
     gui_listbox(cur_menu, LIST_ACTION_NONE);
     init_buttons_encoder();
