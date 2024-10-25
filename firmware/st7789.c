@@ -6,6 +6,7 @@
 #include "st7789.h"
 
 #include "rtc_image.h"
+//#include "chip_icon.h"
 //#include "prop_font.h"
 //#include "sserif13.h"
 //#include "sserif16.h"
@@ -311,6 +312,36 @@ void font_string(uint16_t x, uint16_t y, char *text,
     }
 }
 
+// Draws a icon at the given coordinates. Requires an icon structure.
+// Draws it upside down as is tradition.
+void draw_icon(uint16_t sx, uint16_t sy, const ico_def_t *ico)
+{
+    uint16_t x, y;
+    int sp;
+    const uint8_t *id = ico->image;
+    const uint8_t *md = ico->mask;
+    uint16_t c;
+
+    for (y = sy + ico->height - 1; y >= sy; y--) {
+        for (x = sx; x < sx + ico->width; x+=8) {
+            for (sp = 0; sp < 8; sp++) {
+                if (!((*md >> (7-sp)) & 1)) {
+                    c = ico->pal[*id >> 4];
+                    // No better way to draw with transparency, sadly
+                    pset(x + sp, y, c);
+                }
+                sp++;
+                if (!((*md >> (7-sp)) & 1)) {
+                    c = ico->pal[*id & 0xf];
+                    pset(x + sp, y, c);
+                }
+                id++;
+            }
+            md++;
+        }
+    }
+}
+
 // Initialize the display
 void st7789_init()
 {
@@ -321,6 +352,8 @@ void st7789_init()
 
     st7789_fill(0, 0, 240, 135, 0x001F); // Clear screen
 
+//    draw_icon(20, 20, &chip_icon);
+//    while(1){}
 #if 0
     // Pixel format: BGR (15-0) 5:6:5.
     for (count = 0; count < 64; count++) {

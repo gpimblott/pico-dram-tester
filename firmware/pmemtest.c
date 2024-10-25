@@ -6,6 +6,7 @@
 #include "pmemtest.pio.h"
 #include "st7789.h"
 #include "sserif13.h"
+#include "chip_icon.h"
 #include "gui.h"
 
 PIO pio;
@@ -16,10 +17,17 @@ uint sm = 0;
 #define GPIO_QUAD_BTN 27
 #define GPIO_BACK_BTN 28
 
-const char *main_menu_items[] = {"Item one", "Item two", "Item three", "Item four",
-                                 "Item five", "Item six", "Item seven", "Item eight",
-                                 "Item nine", "Item ten" };
-gui_listbox_t main_menu = {7, 40, 220, 10, 4, 0, 0, main_menu_items};
+gui_listbox_t *cur_menu;
+
+#define MAIN_MENU_ITEMS 8
+const char *main_menu_items[] = {"4116 (16Kx1)", "4132 (32Kx1)", "4164 (64Kx1)", "41128 (128Kx1)",
+                                 "41256 (256Kx1)", "4416 (16Kx4)", "4464 (64Kx4)", "44256 (256Kx4)" };
+gui_listbox_t main_menu = {7, 40, 220, MAIN_MENU_ITEMS, 4, 0, 0, main_menu_items};
+
+
+#define SPEED_MENU_ITEMS 7
+const char *speed_menu_items[] = {"80ns", "100ns", "120ns", "150ns", "200ns", "250ns", "300ns"};
+gui_listbox_t speed_menu = {7, 40, 220, SPEED_MENU_ITEMS, 4, 0, 0, speed_menu_items};
 
 // Routines for reading and writing memory.
 int ram_read(int addr)
@@ -234,17 +242,34 @@ bool is_button_pushed(pin_debounce_t *pin_b)
 // Called when user presses the action button
 void button_action()
 {
-    font_string(9, 56, "ACT", 0x0000, 0xffff, &sserif13, false);
-    sleep_ms(100);
-    st7789_fill(9, 56, 50, 13, 0xffff);
+//    font_string(9, 56, "ACT", 0x0000, 0xffff, &sserif13, false);
+//    sleep_ms(100);
+//    st7789_fill(9, 56, 50, 13, 0xffff);
+    // Do something based on the current menu
+    if (cur_menu == &main_menu) {
+        cur_menu = &speed_menu;
+        paint_dialog("Select Speed Grade");
+        gui_listbox(cur_menu, LIST_ACTION_NONE);
+    } else if (cur_menu == &speed_menu) {
+        // TODO: Refactor this into a nice clean ShowDialog() type routine
+        paint_dialog("Place Chip in Socket");
+        draw_icon(20, 60, &chip_icon);
+        font_string(70, 60, "Choose the correct socket", 0x0000, COLOR_LTGRAY, &sserif13, false);
+        font_string(70, 73, "and check pin 1 orientation", 0x0000, COLOR_LTGRAY, &sserif13, false);
+    }
 }
 
 // Called when the user presses the back button
 void button_back()
 {
-    font_string(9, 69, "BACK", 0x0000, 0xffff, &sserif13, false);
-    sleep_ms(100);
-    st7789_fill(9, 69, 50, 12, 0xffff);
+//    font_string(9, 69, "BACK", 0x0000, 0xffff, &sserif13, false);
+//    sleep_ms(100);
+//    st7789_fill(9, 69, 50, 12, 0xffff);
+    if (cur_menu = &speed_menu) {
+        cur_menu = &main_menu;
+        paint_dialog("Select Device");
+        gui_listbox(cur_menu, LIST_ACTION_NONE);
+    }
 }
 
 void do_buttons()
@@ -268,14 +293,14 @@ void wheel_increment()
 {
     wheel_val++;
 //    wheel_print();
-    gui_listbox(&main_menu, LIST_ACTION_DOWN);
+    gui_listbox(cur_menu, LIST_ACTION_DOWN);
 }
 
 void wheel_decrement()
 {
     wheel_val--;
 //    wheel_print();
-    gui_listbox(&main_menu, LIST_ACTION_UP);
+    gui_listbox(cur_menu, LIST_ACTION_UP);
 }
 
 void do_encoder()
@@ -335,9 +360,10 @@ int main() {
 
     // Init display
     st7789_init();
+    cur_menu = &main_menu;
 //    gui_demo();
     paint_dialog("Select Device");
-    gui_listbox(&main_menu, LIST_ACTION_NONE);
+    gui_listbox(cur_menu, LIST_ACTION_NONE);
     init_buttons_encoder();
     while(1) {
         do_encoder();
