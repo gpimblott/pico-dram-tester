@@ -7,17 +7,17 @@
 
 #include "rtc_image.h"
 //#include "prop_font.h"
-#include "sserif13.h"
+//#include "sserif13.h"
 #include "sserif16.h"
 #include "sserif20.h"
 #include "widgets16.h"
 
-#define PIN_SPI_CS 17
-#define PIN_SPI_SCK 18
-#define PIN_SPI_DO 19
-#define PIN_SPI_DC 16
+#define PIN_SPI_CS 1
+#define PIN_SPI_SCK 2
+#define PIN_SPI_DO 3
+#define PIN_SPI_DC 0
 
-#define PIN_7789_RST 20
+#define PIN_7789_RST 6 // FIXME no more reset
 
 #define RESET_DELAY 140
 

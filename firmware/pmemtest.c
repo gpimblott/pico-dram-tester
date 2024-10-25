@@ -5,9 +5,15 @@
 // Our assembled program:
 #include "pmemtest.pio.h"
 #include "st7789.h"
+#include "sserif13.h"
 
 PIO pio;
 uint sm = 0;
+
+#define GPIO_QUAD_A 22
+#define GPIO_QUAD_B 26
+#define GPIO_QUAD_BTN 27
+#define GPIO_BACK_BTN 28
 
 // Routines for reading and writing memory.
 int ram_read(int addr)
@@ -184,8 +190,127 @@ int ramtest(int range)
 
 // Also need some testing algorithms... :)
 
+typedef struct {
+    uint32_t pin;
+    uint32_t hcount;
+} pin_debounce_t;
+
+#define DEBOUNCE_COUNT 1000
+
+// Debounces a pin
+uint8_t do_debounce(pin_debounce_t *d)
+{
+    if (gpio_get(d->pin)) {
+        d->hcount++;
+        if (d->hcount > DEBOUNCE_COUNT) d->hcount = DEBOUNCE_COUNT;
+    } else {
+        d->hcount = 0;
+    }
+    return (d->hcount >= DEBOUNCE_COUNT) ? 1 : 0;
+}
+
+// Returns true only *once* when a button is pushed. No key repeat.
+bool is_button_pushed(pin_debounce_t *pin_b)
+{
+    if (!gpio_get(pin_b->pin)) {
+        if (pin_b->hcount < DEBOUNCE_COUNT) {
+            pin_b->hcount++;
+            if (pin_b->hcount == DEBOUNCE_COUNT) {
+                return true;
+            }
+        }
+    } else {
+        pin_b->hcount = 0;
+    }
+    return false;
+}
+
+// Called when user presses the action button
+void button_action()
+{
+    font_string(9, 56, "ACT", 0x0000, 0xffff, &sserif13, false);
+    sleep_ms(100);
+    st7789_fill(9, 56, 50, 13, 0xffff);
+}
+
+// Called when the user presses the back button
+void button_back()
+{
+    font_string(9, 69, "BACK", 0x0000, 0xffff, &sserif13, false);
+    sleep_ms(100);
+    st7789_fill(9, 69, 50, 12, 0xffff);
+}
+
+void do_buttons()
+{
+    static pin_debounce_t action_btn = {GPIO_QUAD_BTN, 0};
+    static pin_debounce_t back_btn = {GPIO_BACK_BTN, 0};
+    if (is_button_pushed(&action_btn)) button_action();
+    if (is_button_pushed(&back_btn)) button_back();
+}
+
+static int wheel_val = 0;
+
+void wheel_print()
+{
+    char a[] = "          ";
+    sprintf(a, "%d  ", wheel_val);
+    font_string(9, 43, a, 0x0000, 0xffff, &sserif13, false);
+}
+
+void wheel_increment()
+{
+    wheel_val++;
+    wheel_print();
+}
+
+void wheel_decrement()
+{
+    wheel_val--;
+    wheel_print();
+}
+
+void do_encoder()
+{
+    static pin_debounce_t pin_a = {GPIO_QUAD_A, 0};
+    static pin_debounce_t pin_b = {GPIO_QUAD_B, 0};
+    static uint8_t wheel_state_old = 0;
+    uint8_t st;
+    uint8_t wheel_state;
+
+    wheel_state = do_debounce(&pin_a) | (do_debounce(&pin_b) << 1);
+    st = wheel_state | (wheel_state_old << 4);
+    if (wheel_state != wheel_state_old) {
+        // Present state, next state
+        // 00 -> 01 clockwise
+        // 10 -> 11 counterclockwise
+        // 11 -> 10 clockwise
+        // 01 -> 00 counterclockwise
+        if ((st == 0x01) || (st == 0x32)) {
+            wheel_increment();
+        }
+        if ((st == 0x23) || (st == 0x10)) {
+            wheel_decrement();
+        }
+        wheel_state_old = wheel_state;
+    }
+}
+
+void init_buttons_encoder()
+{
+    gpio_init(GPIO_QUAD_A);
+    gpio_init(GPIO_QUAD_B);
+    gpio_init(GPIO_QUAD_BTN);
+    gpio_init(GPIO_BACK_BTN);
+    gpio_set_dir(GPIO_QUAD_A, GPIO_IN);
+    gpio_set_dir(GPIO_QUAD_B, GPIO_IN);
+    gpio_set_dir(GPIO_QUAD_BTN, GPIO_IN);
+    gpio_set_dir(GPIO_BACK_BTN, GPIO_IN);
+
+}
+
 int main() {
-    uint pin = 0;
+    uint pin = 5; // Starting GPIO for memory interface
     uint offset;
     uint16_t addr;
     uint8_t db = 0;
@@ -194,14 +319,19 @@ int main() {
 
     // PLL->prim = 0x51000.
 
-    stdio_uart_init_full(uart0, 57600, 28, 29); // 28=tx, 29=rx actually runs at 115200 due to overclock
-    gpio_init(15);
-    gpio_set_dir(15, GPIO_OUT);
+    //stdio_uart_init_full(uart0, 57600, 28, 29); // 28=tx, 29=rx actually runs at 115200 due to overclock
+    //gpio_init(15);
+    //gpio_set_dir(15, GPIO_OUT);
 
-    printf("Test.\n");
+    //printf("Test.\n");
 
     // Init display
     st7789_init();
+    init_buttons_encoder();
+    while(1) {
+        do_encoder();
+        do_buttons();
+    }
 
     bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(&pmemtest_program, &pio, &sm, &offset, pin, 2, true);
     pmemtest_program_init(pio, sm, offset, pin);
@@ -209,9 +339,9 @@ int main() {
 
     while(1) {
         //retval = ramtest(65536);
-        printf("Begin march test.\n");
+//        printf("Begin march test.\n");
         retval = marchb_test(65536);
-        printf("Rv: %d\n", retval);
+//        printf("Rv: %d\n", retval);
     }
 
     return 0;

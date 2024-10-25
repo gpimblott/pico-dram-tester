@@ -13,7 +13,10 @@ typedef struct {
 
 
 void st7789_init();
-
+void st7789_fill(uint16_t sx, uint16_t sy, uint16_t width, uint16_t height, uint16_t col);
+void font_string(uint16_t x, uint16_t y, char *text,
+                 uint16_t fg_color, uint16_t bg_color,
+                 const font_def_t *font, bool bold);
 
 
 
