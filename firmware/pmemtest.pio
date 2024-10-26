@@ -1,3 +1,24 @@
+;
+; 4164
+; SP0  = A0
+; SP1  = A1
+; SP2  = A2
+; SP3  = A3
+; SP4  = A4
+; SP5  = A5
+; SP6  = A6
+; SP7  = A7
+; SP8  = nc
+; SP9  = D
+; SP10 = WE#
+; SP11 = RAS#
+; SP12 = CAS#
+; SP13 = nc
+; SP14 = nc
+; SP15 = nc
+; SP16 = Q
+
+; set pins: CAS, RAS, WR.
 .pio_version 0 // only requires PIO version 0
 .program pmemtest
 ; Note: We need to update the address lines and the RAS# at the same time.
@@ -5,24 +26,24 @@
 full_transfer:        ; (delay val at end of instr)
     nop [27]          ; 264.0  tRC = 260.7ns
     out pins, 8       ; 3.3    Load row address
-    set pins, 0b110   ; 6.6    Lower RAS#
+    set pins, 0b101   ; 6.6    Lower RAS#
     nop [5]           ; 26.4   tRCD (RAS to CAS) = 26.4ns
 cas_only_transfer:
-    out pins, 9       ; 29.7     Load col address + write data
+    out pins, 10      ; 29.7     Load col address + write data
     jmp !x skip_wr    ; 33
     set pins, 0b000   ; 36.3     Lower CAS#, WR#
     jmp skip_wr2      ; 39.6
 skip_wr:
-    set pins, 0b100   ; 36.3     Lower CAS#
+    set pins, 0b001   ; 36.3     Lower CAS#
     nop               ; 39.6
 skip_wr2:
     mov OSR, NULL     ; 42.9     Clear OSR
     nop [3]           ; 56.1
-    set pins, 0b100   ; 59.4     Raise WR#  tWCH = 26.4ns.
-    out pins, 9       ; 62.7     Clear addr+data. tCAH, tDH = 29.7ns.
+    set pins, 0b001   ; 59.4     Raise WR#  tWCH = 26.4ns.
+    out pins, 10      ; 62.7     Clear addr+data. tCAH, tDH = 29.7ns.
     nop [13]          ; 108.9    total = tRSH, tRSH
     in pins, 1        ; 112.2    Get bit tCAC = 75.9ns
-    set pins, 0b110   ; 115.5    Raise CAS#. tCAS = 79.2ns
+    set pins, 0b101   ; 115.5    Raise CAS#. tCAS = 79.2ns
     push noblock      ; 118.8
     nop [9]           ; 151.8
     jmp !y begin      ; 155.1 Raise RAS# only if we are doing a full transfer
@@ -42,26 +63,26 @@ skip_ras:
 static inline void pmemtest_program_init(PIO pio, uint sm, uint offset, uint pin) {
     uint count;
 
-    // 13 outputs
-    for (count = 0; count < 13; count++) {
+    // Set up 17 total pins
+    for (count = 0; count < 17; count++) {
         pio_gpio_init(pio, pin + count);
         gpio_set_slew_rate(pin + count, GPIO_SLEW_RATE_FAST);
         gpio_set_drive_strength(pin + count, GPIO_DRIVE_STRENGTH_4MA);
     }
     pio_sm_set_consecutive_pindirs(pio, sm, pin, 13, true); // true=output
-    pio_sm_set_consecutive_pindirs(pio, sm, pin + 12, 1, false); // input
+    pio_sm_set_consecutive_pindirs(pio, sm, pin + 16, 1, false); // input
 
     pio_sm_set_clkdiv(pio, sm, 1); // should just be the default.
 
     pio_sm_config c = pmemtest_program_get_default_config(offset);
-// A0, A1, A2, A3, A4, A5, A6, A7, D, RAS, CAS, WR, IN
-    sm_config_set_out_pins(&c, pin, 9);
-    sm_config_set_set_pins(&c, pin + 9, 3); // Max is 5.
-    sm_config_set_sideset_pins(&c, pin + 9);
-    sm_config_set_in_pins(&c, pin + 12);
+// A0, A1, A2, A3, A4, A5, A6, A7, nc, D, WR, RAS, CAS, nc, nc, nc, IN
+    sm_config_set_out_pins(&c, pin, 10);
+    sm_config_set_set_pins(&c, pin + 10, 3); // Max is 5.
+//    sm_config_set_sideset_pins(&c, pin + 9);
+    sm_config_set_in_pins(&c, pin + 16);
 
-    // Shift right, Autopull off, 19 bits (1 + 1 + 8 + 9) at a time
-    sm_config_set_out_shift(&c, true, false, 19);
+    // Shift right, Autopull off, 20 bits (1 + 1 + 8 + 10) at a time
+    sm_config_set_out_shift(&c, true, false, 20);
     // Shift left, Autopull on, 1 bit
     sm_config_set_in_shift(&c, false, false, 1);
 

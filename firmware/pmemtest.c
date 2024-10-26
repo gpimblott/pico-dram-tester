@@ -13,10 +13,12 @@
 PIO pio;
 uint sm = 0;
 
+#define GPIO_POWER 4
 #define GPIO_QUAD_A 22
 #define GPIO_QUAD_B 26
 #define GPIO_QUAD_BTN 27
 #define GPIO_BACK_BTN 28
+#define GPIO_LED 25
 
 gui_listbox_t *cur_menu;
 
@@ -69,18 +71,32 @@ void core1_entry() {
     }
 }
 
+// Routines for turning on-board power on and off
+static inline void power_on()
+{
+    gpio_set_dir(GPIO_POWER, true);
+    gpio_put(GPIO_POWER, false);
+    sleep_ms(100);
+}
 
+static inline void power_off()
+{
+    gpio_set_dir(GPIO_POWER, false);
+}
 
 // Routines for reading and writing memory.
 int ram_read(int addr)
 {
+    uint d;
         pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
                             0 << 1 |                // Write flag
                             (addr & 0xff) << 2 |    // Row address
                             (addr & 0xff00) << 2|   // Column address
-                            ((0 & 1) << 18));       // Data bit
+                            ((0 & 1) << 19));       // Data bit
         while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for data to arrive
-        return pio_sm_get(pio, sm);                 // Return the data
+        d = pio_sm_get(pio, sm);                 // Return the data
+        //gpio_put(GPIO_LED, d);
+        return d;
 }
 
 void ram_write(int addr, int data)
@@ -89,7 +105,7 @@ void ram_write(int addr, int data)
                             1 << 1 |                // Write flag
                             (addr & 0xff) << 2 |    // Row address
                             (addr & 0xff00) << 2|   // Column address
-                            ((data & 1) << 18));    // Data bit
+                            ((data & 1) << 19));    // Data bit
         while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
         pio_sm_get(pio, sm);                        // Discard the dummy data bit
 }
@@ -182,7 +198,7 @@ static inline bool march_element(int addr_size, bool descending, int algorithm)
                 ret = marchb_m3(a);
                 break;
             case 4:
-                marchb_m4(a);
+                ret = marchb_m4(a);
                 break;
             default:
                 break;
@@ -370,13 +386,14 @@ void show_test_gui()
 
 void start_the_ram_test()
 {
-    // TODO: Get the power turned on
+    // Get the power turned on
+    power_on();
 
     // Get the PIO going
     prepare_ram_pio();
 
     // Dispatch the second core
-    queue_entry_t entry = {marchb_test, 65535};
+    queue_entry_t entry = {marchb_test, 8}; // was 65536
     queue_add_blocking(&call_queue, &entry);
 }
 
@@ -389,6 +406,7 @@ void do_status()
     // Check official status
         if (!queue_is_empty(&results_queue)) {
             stop_ram_pio();
+            power_off();
             // The RAM test completed, so let's handle that
             sleep_ms(100);
             queue_remove_blocking(&results_queue, &retval);
@@ -546,6 +564,13 @@ int main() {
 
     //printf("Test.\n");
 
+    gpio_init(GPIO_LED);
+    gpio_set_dir(GPIO_LED, GPIO_OUT);
+    gpio_put(GPIO_LED, 1);
+
+    gpio_init(GPIO_POWER);
+    power_off();
+
     // Set up second core
     queue_init(&call_queue, sizeof(queue_entry_t), 2);
     queue_init(&results_queue, sizeof(int32_t), 2);
@@ -560,6 +585,24 @@ int main() {
     paint_dialog("Select Device");
     gui_listbox(cur_menu, LIST_ACTION_NONE);
     init_buttons_encoder();
+
+
+// Testing
+#if 0
+    power_on();
+//    sleep_ms(500);
+    prepare_ram_pio();
+//    sleep_ms(10);
+        for (i=0; i < 100; i++) {
+//            ram_read(i&7);
+//            ram_write(i&7, 1);
+//            ram_read(i&7);
+//            ram_write(i&7, 0);
+              gpio_put(GPIO_LED, marchb_test(8));
+        }
+    while(1) {}
+#endif
+
     while(1) {
         do_encoder();
         do_buttons();
