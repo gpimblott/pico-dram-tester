@@ -23,9 +23,9 @@ def do_icon(ico_info, ico, fname):
     # Now parse the palette
     pal = []
     for i in range(0, 16 * 4, 4):
-        r = paldata[i] >> 3
+        b = paldata[i] >> 3
         g = paldata[i+1] >> 2
-        b = paldata[i+2] >> 3
+        r = paldata[i+2] >> 3
         # Ignoring alpha channel
         # BBBBBGGGGGGRRRRR
         pal.append('0x%.4X' % ((b << 11) | (g << 5) | r))
