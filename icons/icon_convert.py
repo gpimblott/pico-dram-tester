@@ -77,7 +77,10 @@ icons = []
 for i in range(num_images):
     icons.append(struct.unpack('<BBBBHHLL', ico[6 + i * 16:][:16]))
 
-for i in range(len(icons)):
-    do_icon(icons[i], ico, "%s%d" % (fname, i))
+if len(icons) == 1:
+    do_icon(icons[0], ico, fname)
+else:
+    for i in range(len(icons)):
+        do_icon(icons[i], ico, "%s%d" % (fname, i))
 
 
