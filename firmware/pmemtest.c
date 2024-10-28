@@ -6,8 +6,19 @@
 #include "hardware/pio.h"
 // Our assembled program:
 #include "pmemtest.pio.h"
+
 #include "st7789.h"
+
+// Icons
 #include "chip_icon.h"
+#include "warn_icon.h"
+#include "error_icon.h"
+#include "check_icon.h"
+#include "drum_icon0.h"
+#include "drum_icon1.h"
+#include "drum_icon2.h"
+#include "drum_icon3.h"
+
 #include "gui.h"
 
 PIO pio;
@@ -385,8 +396,8 @@ void show_test_gui()
 
     // Current test indicator
     paint_status(120, 45, 100, "March B");
-
-    // TODO: Add a nice icon or animation
+    draw_icon(164, 80, &drum_icon0);
+    
 }
 
 void start_the_ram_test()
@@ -409,12 +420,37 @@ void do_status()
     char retstring[30];
     uint16_t v;
     static uint16_t v_prev = 0;
+    static uint16_t drum_anim = 0;
+    static uint8_t drum_st = 0;
+
     if (gui_state == DO_TEST) {
         // TODO: Visualizations
         v = cur_addr >> 6; // FIXME: depends on our address space
         update_test_gui(v, TESTING);
         update_test_gui(v_prev, PASSED);
         v_prev = v;
+
+        // Drum animation
+        drum_anim++;
+        if (drum_anim > 8191) {
+            drum_anim = 0;
+            if (drum_st++ > 3) drum_st = 0;
+            st7789_fill(164, 80, 32, 32, COLOR_LTGRAY);
+            switch (drum_st) {
+                case 0:
+                    draw_icon(164, 80, &drum_icon0);
+                    break;
+                case 1:
+                    draw_icon(164, 80, &drum_icon1);
+                    break;
+                case 2:
+                    draw_icon(164, 80, &drum_icon2);
+                    break;
+                case 3:
+                    draw_icon(164, 80, &drum_icon3);
+                    break;
+            }
+        }
 
     // Check official status
         if (!queue_is_empty(&results_queue)) {
@@ -423,12 +459,15 @@ void do_status()
             // The RAM test completed, so let's handle that
             sleep_ms(100);
             queue_remove_blocking(&results_queue, &retval);
-            // We'll create a new dialog and state
+            // Show the completion status
             gui_state = TEST_RESULTS;
+            st7789_fill(164, 80, 32, 32, COLOR_LTGRAY);
             if (retval) {
-                gui_messagebox("Results", "Test passed!", &chip_icon);
+                paint_status(120, 45, 100, "Passed!");
+                draw_icon(164, 80, &check_icon);
             } else {
-                gui_messagebox("Results", "Test failed.", &chip_icon);
+                paint_status(120, 45, 100, "Failed.");
+                draw_icon(164, 80, &error_icon);
             }
             // TODO: Nicer pass/fail text and icon
         }
