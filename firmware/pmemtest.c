@@ -20,6 +20,8 @@ uint sm = 0;
 #define GPIO_BACK_BTN 28
 #define GPIO_LED 25
 
+volatile int cur_addr;
+
 gui_listbox_t *cur_menu;
 
 #define MAIN_MENU_ITEMS 8
@@ -183,22 +185,22 @@ static inline bool march_element(int addr_size, bool descending, int algorithm)
     int a;
     bool ret;
 
-    for (a = start; a != end; a += inc) {
+    for (cur_addr = start; cur_addr != end; cur_addr += inc) {
         switch (algorithm) {
             case 0:
-                ret = marchb_m0(a);
+                ret = marchb_m0(cur_addr);
                 break;
             case 1:
-                ret = marchb_m1(a);
+                ret = marchb_m1(cur_addr);
                 break;
             case 2:
-                ret = marchb_m2(a);
+                ret = marchb_m2(cur_addr);
                 break;
             case 3:
-                ret = marchb_m3(a);
+                ret = marchb_m3(cur_addr);
                 break;
             case 4:
-                ret = marchb_m4(a);
+                ret = marchb_m4(cur_addr);
                 break;
             default:
                 break;
@@ -347,10 +349,10 @@ void update_test_gui(uint16_t addr, test_status_t status)
     cy = (addr >> 5) & 0x1f; // 10 bits are used
     switch (status) {
         case UNTESTED:
-            col = COLOR_BLACK; // Untested
+            col = COLOR_DKGRAY; // Untested
             break;
         case TESTING:
-            col = COLOR_CYAN;
+            col = COLOR_RED;
             break;
         case PASSED:
             col = COLOR_GREEN;
@@ -372,10 +374,13 @@ void show_test_gui()
     fancy_rect(7, 31, 100, 100, B_SUNKEN_OUTER); // Usable size is 220x80.
     fancy_rect(8, 32, 98, 98, B_SUNKEN_INNER);
     st7789_fill(9, 33, 96, 96, COLOR_BLACK);
-    for (cx = 0; cx < 32; cx++) {
-        for (cy = 0; cy < 32; cy++) {
-            st7789_fill(CELL_STAT_X + cx * 3, CELL_STAT_Y + cy * 3, 2, 2, COLOR_GREEN);
-        }
+//    for (cx = 0; cx < 32; cx++) {
+//        for (cy = 0; cy < 32; cy++) {
+//            st7789_fill(CELL_STAT_X + cx * 3, CELL_STAT_Y + cy * 3, 2, 2, COLOR_GREEN);
+//        }
+//    }
+    for (cx = 0; cx < 1024; cx++) {
+        update_test_gui(cx, UNTESTED);
     }
 
     // Current test indicator
@@ -393,7 +398,7 @@ void start_the_ram_test()
     prepare_ram_pio();
 
     // Dispatch the second core
-    queue_entry_t entry = {marchb_test, 8}; // was 65536
+    queue_entry_t entry = {marchb_test, 65536};
     queue_add_blocking(&call_queue, &entry);
 }
 
@@ -402,7 +407,15 @@ void do_status()
 {
     uint32_t retval;
     char retstring[30];
+    uint16_t v;
+    static uint16_t v_prev = 0;
     if (gui_state == DO_TEST) {
+        // TODO: Visualizations
+        v = cur_addr >> 6; // FIXME: depends on our address space
+        update_test_gui(v, TESTING);
+        update_test_gui(v_prev, PASSED);
+        v_prev = v;
+
     // Check official status
         if (!queue_is_empty(&results_queue)) {
             stop_ram_pio();
@@ -412,10 +425,13 @@ void do_status()
             queue_remove_blocking(&results_queue, &retval);
             // We'll create a new dialog and state
             gui_state = TEST_RESULTS;
-            sprintf(retstring, "Test was %d.", retval);
-            gui_messagebox("Results", retstring, &chip_icon);
+            if (retval) {
+                gui_messagebox("Results", "Test passed!", &chip_icon);
+            } else {
+                gui_messagebox("Results", "Test failed.", &chip_icon);
+            }
+            // TODO: Nicer pass/fail text and icon
         }
-        // TODO: Visualizations
     }
 }
 
