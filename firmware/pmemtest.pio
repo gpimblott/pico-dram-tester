@@ -1,5 +1,8 @@
 ;
-; 4164
+; 4164 Test Program
+;
+
+; Pin Assignments
 ; SP0  = A0
 ; SP1  = A1
 ; SP2  = A2
@@ -18,16 +21,18 @@
 ; SP15 = nc
 ; SP16 = Q
 
+; Timing values (nameplate, tRAC): 100ns, 120ns, 150ns, 200ns, 300ns
+
 ; set pins: CAS, RAS, WR.
 .pio_version 0 // only requires PIO version 0
 .program pmemtest
 ; Note: We need to update the address lines and the RAS# at the same time.
     jmp begin
 full_transfer:        ; (delay val at end of instr)
-    nop [27]          ; 264.0  tRC = 260.7ns
+    nop [1]          ; 264.0 [27] tRC = 260.7ns
     out pins, 8       ; 3.3    Load row address
     set pins, 0b101   ; 6.6    Lower RAS#
-    nop [5]           ; 26.4   tRCD (RAS to CAS) = 26.4ns
+    nop [2]           ; 26.4   [5] tRCD (RAS to CAS) = 26.4ns
 cas_only_transfer:
     out pins, 10      ; 29.7     Load col address + write data
     jmp !x skip_wr    ; 33
@@ -38,14 +43,14 @@ skip_wr:
     nop               ; 39.6
 skip_wr2:
     mov OSR, NULL     ; 42.9     Clear OSR
-    nop [3]           ; 56.1
+    nop [3]           ; 56.1     [3]
     set pins, 0b001   ; 59.4     Raise WR#  tWCH = 26.4ns.
     out pins, 10      ; 62.7     Clear addr+data. tCAH, tDH = 29.7ns.
-    nop [13]          ; 108.9    total = tRSH, tRSH
+    nop [4]          ; 108.9    [13] total = tRSH, tRSH
     in pins, 1        ; 112.2    Get bit tCAC = 75.9ns
     set pins, 0b101   ; 115.5    Raise CAS#. tCAS = 79.2ns
     push noblock      ; 118.8
-    nop [9]           ; 151.8
+    nop [5]           ; 151.8    [9]
     jmp !y begin      ; 155.1 Raise RAS# only if we are doing a full transfer
     jmp skip_ras      ; 158.4
 begin:
@@ -60,6 +65,9 @@ skip_ras:
 
 
 % c-sdk {
+
+static const uint8_t pmemtest_delays[] = {0, 27, 5, 3, 13, 9};
+
 static inline void pmemtest_program_init(PIO pio, uint sm, uint offset, uint pin) {
     uint count;
 

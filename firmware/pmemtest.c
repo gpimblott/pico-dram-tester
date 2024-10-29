@@ -4,6 +4,7 @@
 #include "pico/multicore.h"
 #include "pico/util/queue.h"
 #include "hardware/pio.h"
+#include "pio_patcher.h"
 // Our assembled program:
 #include "pmemtest.pio.h"
 
@@ -280,10 +281,12 @@ int ramtest(int range)
 void prepare_ram_pio()
 {
     uint pin = 5;
-    bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(&pmemtest_program, &pio, &sm, &offset, pin, 17, true);
+    set_current_pio_program(&pmemtest_program);
+    // Patches the program with the correct delay values
+    pio_patch_delays(pmemtest_delays, 6);
+    bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(get_current_pio_program(), &pio, &sm, &offset, pin, 17, true);
     pmemtest_program_init(pio, sm, offset, pin);
     pio_sm_set_enabled(pio, sm, true);
-
 }
 
 void stop_ram_pio()
