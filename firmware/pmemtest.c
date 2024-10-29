@@ -23,6 +23,7 @@
 
 PIO pio;
 uint sm = 0;
+uint offset; // Returns offset of starting instruction
 
 #define GPIO_POWER 4
 #define GPIO_QUAD_A 22
@@ -279,7 +280,6 @@ int ramtest(int range)
 void prepare_ram_pio()
 {
     uint pin = 5;
-    uint offset; // Returns offset of starting instruction
     bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(&pmemtest_program, &pio, &sm, &offset, pin, 17, true);
     pmemtest_program_init(pio, sm, offset, pin);
     pio_sm_set_enabled(pio, sm, true);
@@ -289,7 +289,7 @@ void prepare_ram_pio()
 void stop_ram_pio()
 {
     pio_sm_set_enabled(pio, sm, false);
-    // FIXME: ensure GPIO pins are all in the right state
+    pio_remove_program_and_unclaim_sm(&pmemtest_program, pio, sm, offset);
 }
 
 typedef struct {
