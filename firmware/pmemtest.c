@@ -5,7 +5,13 @@
 #include "pico/util/queue.h"
 #include "hardware/pio.h"
 #include "pio_patcher.h"
-// Our assembled program:
+#include "mem_chip.h"
+
+PIO pio;
+uint sm = 0;
+uint offset; // Returns offset of starting instruction
+
+// Defined RAM pio programs
 #include "pmemtest.pio.h"
 
 #include "st7789.h"
@@ -22,9 +28,6 @@
 
 #include "gui.h"
 
-PIO pio;
-uint sm = 0;
-uint offset; // Returns offset of starting instruction
 
 #define GPIO_POWER 4
 #define GPIO_QUAD_A 22
@@ -38,13 +41,14 @@ volatile int cur_addr;
 gui_listbox_t *cur_menu;
 
 #define MAIN_MENU_ITEMS 8
-const char *main_menu_items[] = {"4116 (16Kx1)", "4132 (32Kx1)", "4164 (64Kx1)", "41128 (128Kx1)",
-                                 "41256 (256Kx1)", "4416 (16Kx4)", "4464 (64Kx4)", "44256 (256Kx4)" };
+char *main_menu_items[MAIN_MENU_ITEMS];
 gui_listbox_t main_menu = {7, 40, 220, MAIN_MENU_ITEMS, 4, 0, 0, main_menu_items};
 
+#define NUM_CHIPS 1
+const mem_chip_t *chip_list[] = {&pmemtest_chip};
 
 #define SPEED_MENU_ITEMS 7
-const char *speed_menu_items[] = {"80ns", "100ns", "120ns", "150ns", "200ns", "250ns", "300ns"};
+char *speed_menu_items[] = {"80ns", "100ns", "120ns", "150ns", "200ns", "250ns", "300ns"};
 gui_listbox_t speed_menu = {7, 40, 220, SPEED_MENU_ITEMS, 4, 0, 0, speed_menu_items};
 
 typedef enum {
@@ -56,6 +60,15 @@ typedef enum {
 } gui_state_t;
 
 gui_state_t gui_state = MAIN_MENU;
+
+void setup_main_menu()
+{
+    uint i;
+    for (i = 0; i < NUM_CHIPS; i++) {
+        main_menu_items[i] = (char *)chip_list[i]->chip_name;
+    }
+    main_menu.tot_lines = NUM_CHIPS;
+}
 
 // Function queue entry for dispatching worker functions
 typedef struct
@@ -99,30 +112,16 @@ static inline void power_off()
     gpio_set_dir(GPIO_POWER, false);
 }
 
-// Routines for reading and writing memory.
-int ram_read(int addr)
+// Wrapper that just calls the read routine for the selected chip
+static inline int ram_read(int addr)
 {
-    uint d;
-        pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
-                            0 << 1 |                // Write flag
-                            (addr & 0xff) << 2 |    // Row address
-                            (addr & 0xff00) << 2|   // Column address
-                            ((0 & 1) << 19));       // Data bit
-        while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for data to arrive
-        d = pio_sm_get(pio, sm);                 // Return the data
-        //gpio_put(GPIO_LED, d);
-        return d;
+    return chip_list[main_menu.sel_line]->ram_read(addr);
 }
 
-void ram_write(int addr, int data)
+// Wrapper that just calls the write routine for the selected chip
+static inline void ram_write(int addr, int data)
 {
-        pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
-                            1 << 1 |                // Write flag
-                            (addr & 0xff) << 2 |    // Row address
-                            (addr & 0xff00) << 2|   // Column address
-                            ((data & 1) << 19));    // Data bit
-        while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
-        pio_sm_get(pio, sm);                        // Discard the dummy data bit
+    chip_list[main_menu.sel_line]->ram_write(addr, data);
 }
 
 int addr_map(int addr)
@@ -226,6 +225,7 @@ static inline bool march_element(int addr_size, bool descending, int algorithm)
 uint32_t marchb_test(uint32_t addr_size)
 {
     bool ret = true;
+    me_w0(0); // ES Hack
     printf("M0 ");
     ret = march_element(addr_size, false, 0);
     if (!ret) return false;
@@ -275,25 +275,6 @@ int ramtest(int range)
     return -1;
 }
 
-// Also need some testing algorithms... :)
-
-// Sets up PIO with a particular RAM test.
-void prepare_ram_pio()
-{
-    uint pin = 5;
-    set_current_pio_program(&pmemtest_program);
-    // Patches the program with the correct delay values
-    pio_patch_delays(pmemtest_delays, 6);
-    bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(get_current_pio_program(), &pio, &sm, &offset, pin, 17, true);
-    pmemtest_program_init(pio, sm, offset, pin);
-    pio_sm_set_enabled(pio, sm, true);
-}
-
-void stop_ram_pio()
-{
-    pio_sm_set_enabled(pio, sm, false);
-    pio_remove_program_and_unclaim_sm(&pmemtest_program, pio, sm, offset);
-}
 
 typedef struct {
     uint32_t pin;
@@ -330,7 +311,7 @@ bool is_button_pushed(pin_debounce_t *pin_b)
     return false;
 }
 
-
+// Setup and display the main menu
 void show_main_menu()
 {
     cur_menu = &main_menu;
@@ -338,10 +319,14 @@ void show_main_menu()
     gui_listbox(cur_menu, LIST_ACTION_NONE);
 }
 
+// With the selected chip, populate the speed grade menu and show it
 void show_speed_menu()
 {
+    uint chip = main_menu.sel_line;
     cur_menu = &speed_menu;
     paint_dialog("Select Speed Grade");
+    speed_menu.items = (char **)chip_list[chip]->speed_names;
+    speed_menu.tot_lines = chip_list[chip]->speed_grades;
     gui_listbox(cur_menu, LIST_ACTION_NONE);
 }
 
@@ -400,20 +385,28 @@ void show_test_gui()
     // Current test indicator
     paint_status(120, 45, 100, "March B");
     draw_icon(164, 80, &drum_icon0);
-    
 }
 
+// Begins the RAM test with the selected RAM chip
 void start_the_ram_test()
 {
     // Get the power turned on
     power_on();
 
     // Get the PIO going
-    prepare_ram_pio();
+    chip_list[main_menu.sel_line]->setup_pio(speed_menu.sel_line);
 
     // Dispatch the second core
-    queue_entry_t entry = {marchb_test, 65536};
+    // (The memory size is from our memory description data structure)
+    queue_entry_t entry = {marchb_test, chip_list[main_menu.sel_line]->mem_size};
     queue_add_blocking(&call_queue, &entry);
+}
+
+// Stops the RAM test
+void stop_the_ram_test()
+{
+    chip_list[main_menu.sel_line]->teardown_pio();
+    power_off();
 }
 
 // During a RAM test, updates the status window and checks for the end of the test
@@ -457,8 +450,7 @@ void do_status()
 
     // Check official status
         if (!queue_is_empty(&results_queue)) {
-            stop_ram_pio();
-            power_off();
+            stop_the_ram_test();
             // The RAM test completed, so let's handle that
             sleep_ms(100);
             queue_remove_blocking(&results_queue, &retval);
@@ -472,7 +464,7 @@ void do_status()
                 paint_status(120, 45, 100, "Failed.");
                 draw_icon(164, 80, &error_icon);
             }
-            // TODO: Nicer pass/fail text and icon
+            // TODO: Some sort of status text indicating the type of failure?
         }
     }
 }
@@ -499,7 +491,7 @@ void button_action()
         case DO_TEST:
             break;
         case TEST_RESULTS:
-            // Maybe run the test again?
+            // TODO: Maybe make it easy to run the test again?
             break;
         default:
             gui_state = MAIN_MENU;
@@ -543,18 +535,8 @@ void do_buttons()
     if (is_button_pushed(&back_btn)) button_back();
 }
 
-static int wheel_val = 0;
-
-void wheel_print()
-{
-    char a[] = "          ";
-    sprintf(a, "%d  ", wheel_val);
- //   font_string(9, 43, a, 255, 0x0000, 0xffff, &sserif20, false);
-}
-
 void wheel_increment()
 {
-    wheel_val++;
     if (gui_state == MAIN_MENU || gui_state == SPEED_MENU) {
         gui_listbox(cur_menu, LIST_ACTION_DOWN);
     }
@@ -562,7 +544,6 @@ void wheel_increment()
 
 void wheel_decrement()
 {
-    wheel_val--;
     if (gui_state == MAIN_MENU || gui_state == SPEED_MENU) {
         gui_listbox(cur_menu, LIST_ACTION_UP);
     }
@@ -638,10 +619,10 @@ int main() {
 
     // Init display
     st7789_init();
-    cur_menu = &main_menu;
+
+    setup_main_menu();
  //   gui_demo();
-    paint_dialog("Select Device");
-    gui_listbox(cur_menu, LIST_ACTION_NONE);
+    show_main_menu();
     init_buttons_encoder();
 
 

@@ -66,7 +66,11 @@ skip_ras:
 
 % c-sdk {
 
-static const uint8_t pmemtest_delays[] = {0, 27, 5, 3, 13, 9};
+static const uint8_t pmemtest_delays[5][32] = {{0, 27, 5, 3, 13, 9},    // 100ns
+                                               {0, 27, 5, 3, 13, 9},    // 120ns
+                                               {0, 27, 5, 3, 13, 9},    // 150ns
+                                               {0, 27, 5, 3, 13, 9},    // 200ns
+                                               {0, 27, 5, 3, 13, 9} };  // 300ns
 
 static inline void pmemtest_program_init(PIO pio, uint sm, uint offset, uint pin) {
     uint count;
@@ -98,4 +102,61 @@ static inline void pmemtest_program_init(PIO pio, uint sm, uint offset, uint pin
     pio_sm_init(pio, sm, offset, &c);
     pio_sm_set_enabled(pio, sm, true);
 }
+
+// Routines for reading and writing memory through the FIFOs
+int pmemtest_ram_read(int addr)
+{
+    uint d;
+    pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
+                        0 << 1 |                // Write flag
+                        (addr & 0xff) << 2 |    // Row address
+                        (addr & 0xff00) << 2|   // Column address
+                        ((0 & 1) << 19));       // Data bit
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for data to arrive
+    d = pio_sm_get(pio, sm);                 // Return the data
+    //gpio_put(GPIO_LED, d);
+    return d;
+}
+
+void pmemtest_ram_write(int addr, int data)
+{
+    pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
+                        1 << 1 |                // Write flag
+                        (addr & 0xff) << 2 |    // Row address
+                        (addr & 0xff00) << 2|   // Column address
+                        ((data & 1) << 19));    // Data bit
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
+    pio_sm_get(pio, sm);                        // Discard the dummy data bit
+}
+
+// Routines to set up and tear down the PIO program (and the RAM test)
+void pmemtest_setup_pio(uint speed_grade)
+{
+    uint pin = 5;
+    set_current_pio_program(&pmemtest_program);
+    // Patches the program with the correct delay values
+    pio_patch_delays(pmemtest_delays[speed_grade], 6);
+    bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(get_current_pio_program(), &pio, &sm, &offset, pin, 17, true);
+    pmemtest_program_init(pio, sm, offset, pin);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+void pmemtest_teardown_pio()
+{
+    pio_sm_set_enabled(pio, sm, false);
+    pio_remove_program_and_unclaim_sm(&pmemtest_program, pio, sm, offset);
+}
+
+// This RAM chip configuration
+static const mem_chip_t pmemtest_chip = { .setup_pio = pmemtest_setup_pio,
+                                          .teardown_pio = pmemtest_teardown_pio,
+                                          .ram_read = pmemtest_ram_read,
+                                          .ram_write = pmemtest_ram_write,
+                                          .mem_size = 65536,
+                                          .speed_grades = 5,
+                                          .chip_name = "4164 (64Kx1)",
+                                          .speed_names = {"100ns", "120ns", "150ns", "200ns", "300ns"} };
+
+
+
 %}

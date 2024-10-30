@@ -43,7 +43,7 @@ typedef struct {
     uint8_t vis_lines;
     uint8_t sel_line;
     uint8_t start_line;
-    const char **items;
+    char **items;
 } gui_listbox_t;
 
 typedef enum {
