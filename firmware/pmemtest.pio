@@ -29,10 +29,11 @@
 ; Note: We need to update the address lines and the RAS# at the same time.
     jmp begin
 full_transfer:        ; (delay val at end of instr)
-    nop [1]          ; 264.0 [27] tRC = 260.7ns
+    nop [1]             ; [0]
+    nop [2]          ; 264.0 [26] tRC = 260.7ns
     out pins, 8       ; 3.3    Load row address
     set pins, 0b101   ; 6.6    Lower RAS#
-    nop [2]           ; 26.4   [5] tRCD (RAS to CAS) = 26.4ns
+    nop [3]           ; 26.4   [5] tRCD (RAS to CAS) = 26.4ns
 cas_only_transfer:
     out pins, 10      ; 29.7     Load col address + write data
     jmp !x skip_wr    ; 33
@@ -43,14 +44,14 @@ skip_wr:
     nop               ; 39.6
 skip_wr2:
     mov OSR, NULL     ; 42.9     Clear OSR
-    nop [3]           ; 56.1     [3]
+    nop [4]           ; 56.1     [3]
     set pins, 0b001   ; 59.4     Raise WR#  tWCH = 26.4ns.
     out pins, 10      ; 62.7     Clear addr+data. tCAH, tDH = 29.7ns.
-    nop [4]          ; 108.9    [13] total = tRSH, tRSH
+    nop [5]          ; 108.9    [13] total = tRSH, tRSH
     in pins, 1        ; 112.2    Get bit tCAC = 75.9ns
     set pins, 0b101   ; 115.5    Raise CAS#. tCAS = 79.2ns
     push noblock      ; 118.8
-    nop [5]           ; 151.8    [9]
+    nop [6]           ; 151.8    [9]
     jmp !y begin      ; 155.1 Raise RAS# only if we are doing a full transfer
     jmp skip_ras      ; 158.4
 begin:
@@ -65,12 +66,13 @@ skip_ras:
 
 
 % c-sdk {
-
-static const uint8_t pmemtest_delays[5][32] = {{0, 27, 5, 3, 13, 9},    // 100ns
-                                               {0, 27, 5, 3, 13, 9},    // 120ns
-                                               {0, 27, 5, 3, 13, 9},    // 150ns
-                                               {0, 27, 5, 3, 13, 9},    // 200ns
-                                               {0, 27, 5, 3, 13, 9} };  // 300ns
+// Original delay numbers are 27, 5, 3, 13, 9
+#define PMEMTEST_DELAYS 7
+static const uint8_t pmemtest_delays[5][32] = {{0, 0, 21, 2, 3, 6, 9},    // 100ns
+                                               {0, 0, 27, 2, 4, 8, 12},    // 120ns
+                                               {0, 0, 27, 2, 6, 11, 16},    // 150ns
+                                               {0, 13, 20, 6, 13, 21, 14},    // 200ns
+                                               {0, 22, 20, 8, 19, 24, 20} };    // 250ns
 
 static inline void pmemtest_program_init(PIO pio, uint sm, uint offset, uint pin) {
     uint count;
@@ -135,7 +137,7 @@ void pmemtest_setup_pio(uint speed_grade)
     uint pin = 5;
     set_current_pio_program(&pmemtest_program);
     // Patches the program with the correct delay values
-    pio_patch_delays(pmemtest_delays[speed_grade], 6);
+    pio_patch_delays(pmemtest_delays[speed_grade], PMEMTEST_DELAYS);
     bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(get_current_pio_program(), &pio, &sm, &offset, pin, 17, true);
     pmemtest_program_init(pio, sm, offset, pin);
     pio_sm_set_enabled(pio, sm, true);
@@ -155,7 +157,7 @@ static const mem_chip_t pmemtest_chip = { .setup_pio = pmemtest_setup_pio,
                                           .mem_size = 65536,
                                           .speed_grades = 5,
                                           .chip_name = "4164 (64Kx1)",
-                                          .speed_names = {"100ns", "120ns", "150ns", "200ns", "300ns"} };
+                                          .speed_names = {"100ns", "120ns", "150ns", "200ns", "250ns"} };
 
 
 
