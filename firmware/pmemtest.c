@@ -12,7 +12,7 @@ uint sm = 0;
 uint offset; // Returns offset of starting instruction
 
 // Defined RAM pio programs
-#include "pmemtest.pio.h"
+#include "ram4164.pio.h"
 
 #include "st7789.h"
 
@@ -45,11 +45,9 @@ char *main_menu_items[MAIN_MENU_ITEMS];
 gui_listbox_t main_menu = {7, 40, 220, MAIN_MENU_ITEMS, 4, 0, 0, main_menu_items};
 
 #define NUM_CHIPS 1
-const mem_chip_t *chip_list[] = {&pmemtest_chip};
+const mem_chip_t *chip_list[] = {&ram4164_chip};
 
-#define SPEED_MENU_ITEMS 7
-char *speed_menu_items[] = {"80ns", "100ns", "120ns", "150ns", "200ns", "250ns", "300ns"};
-gui_listbox_t speed_menu = {7, 40, 220, SPEED_MENU_ITEMS, 4, 0, 0, speed_menu_items};
+gui_listbox_t speed_menu = {7, 40, 220, 0, 4, 0, 0, 0};
 
 typedef enum {
     MAIN_MENU,
