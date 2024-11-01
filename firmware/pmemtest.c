@@ -13,6 +13,7 @@ uint offset; // Returns offset of starting instruction
 
 // Defined RAM pio programs
 #include "ram4164.pio.h"
+#include "ram4116.pio.h"
 
 #include "st7789.h"
 
@@ -44,8 +45,8 @@ gui_listbox_t *cur_menu;
 char *main_menu_items[MAIN_MENU_ITEMS];
 gui_listbox_t main_menu = {7, 40, 220, MAIN_MENU_ITEMS, 4, 0, 0, main_menu_items};
 
-#define NUM_CHIPS 1
-const mem_chip_t *chip_list[] = {&ram4164_chip};
+#define NUM_CHIPS 2
+const mem_chip_t *chip_list[] = {&ram4116_chip, &ram4164_chip};
 
 gui_listbox_t speed_menu = {7, 40, 220, 0, 4, 0, 0, 0};
 
