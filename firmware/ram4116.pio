@@ -65,7 +65,7 @@ skip_ras:
 
 % c-sdk {
 // Original delay numbers are 27, 5, 3, 13, 9
-#define RAM4116_DELAYS 8
+#define RAM4116_DELAYS 5
 static const uint8_t ram4116_delays[5][32] = {{0, 31, 21, 1,  8,  9,  3,  8},    // 120ns
                                               {0, 31, 12, 3, 10, 14,  3,  4},    // 150ns
                                               {0, 31, 14, 5, 13, 21,  6,  7},    // 200ns
@@ -152,7 +152,7 @@ static const mem_chip_t ram4116_chip = { .setup_pio = ram4116_setup_pio,
                                           .ram_read = ram4116_ram_read,
                                           .ram_write = ram4116_ram_write,
                                           .mem_size = 16384,
-                                          .speed_grades = 5,
+                                          .speed_grades = RAM4116_DELAYS,
                                           .chip_name = "4116 (16Kx1)",
                                           .speed_names = {"120ns", "150ns", "200ns", "250ns", "300ns"} };
 

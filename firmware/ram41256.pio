@@ -1,5 +1,5 @@
 ;
-; 4164 Test Program
+; 41256 Test Program
 ;
 
 ; Pin Assignments
@@ -11,7 +11,7 @@
 ; SP5  = A5
 ; SP6  = A6
 ; SP7  = A7
-; SP8  = nc
+; SP8  = A8
 ; SP9  = D
 ; SP10 = WE#
 ; SP11 = RAS#
@@ -21,17 +21,15 @@
 ; SP15 = nc
 ; SP16 = Q
 
-; Timing values (nameplate, tRAC): 100ns, 120ns, 150ns, 200ns, 300ns
-
 ; set pins: CAS, RAS, WR.
 .pio_version 0 // only requires PIO version 0
-.program ram4164
+.program ram41256
 ; Note: We need to update the address lines and the RAS# at the same time.
     jmp begin
 full_transfer:        ; (delay val at end of instr)
     nop [1]             ; [0] ES44
     nop [2]          ; 264.0 [26] tRC = 260.7ns
-    out pins, 8       ; 3.3    Load row address
+    out pins, 9       ; 3.3    Load row address
     set pins, 0b101   ; 6.6    Lower RAS#
     nop [3]           ; 26.4   [5] tRCD (RAS to CAS) = 26.4ns
 cas_only_transfer:
@@ -61,20 +59,21 @@ skip_ras:
     out y, 1          ; 165.0 get first bit which tells us if this is fast page mode ES41
     out x, 1          ; 168.3 get second bit which tells us if we are in write mode. ES42
     jmp !y full_transfer ; 171.6 ES43
-    out NULL, 8 [7]           ; 174.9 Throw out row address
+    out NULL, 9 [7]           ; 174.9 Throw out row address
     jmp cas_only_transfer ; 178.2 Fast page mode tCP=22*3.3=72.6ns
 
 
 % c-sdk {
-// Original delay numbers are 27, 5, 3, 13, 9
-#define RAM4164_DELAYS 5
-static const uint8_t ram4164_delays[5][32] = {{0, 0,  20, 2,  2,  6,  5,  0},    // 100ns
-                                              {0, 0,  25, 2,  4,  7,  8,  0},    // 120ns
-                                              {0, 0,  25, 2,  6, 10, 12,  0},    // 150ns
-                                              {0, 11, 20, 7, 13, 21,  4,  9},    // 200ns
-                                              {0, 20, 20, 8, 19, 24,  9, 10} };    // 250ns
 
-static inline void ram4164_program_init(PIO pio, uint sm, uint offset, uint pin) {
+#define RAM41256_DELAYS 6
+static const uint8_t ram41256_delays[6][32] = {{0, 0, 10, 4,  1,  0,  1,  0},    // 70ns
+                                               {0, 0, 13, 4,  1,  1,  3,  0},    // 80ns
+                                               {0, 0, 15, 2,  1,  5,  2,  0},    // 85ns
+                                               {0, 0, 14, 4,  2,  0,  9,  0},    // 100ns
+                                               {0, 0, 22, 4,  4,  6,  7,  0},    // 120ns
+                                               {0, 0, 25, 4,  5,  10, 11, 0} };  // 150ns
+
+static inline void ram41256_program_init(PIO pio, uint sm, uint offset, uint pin) {
     uint count;
 
     // Set up 17 total pins
@@ -88,7 +87,7 @@ static inline void ram4164_program_init(PIO pio, uint sm, uint offset, uint pin)
 
     pio_sm_set_clkdiv(pio, sm, 1); // should just be the default.
 
-    pio_sm_config c = ram4164_program_get_default_config(offset);
+    pio_sm_config c = ram41256_program_get_default_config(offset);
 // A0, A1, A2, A3, A4, A5, A6, A7, nc, D, WR, RAS, CAS, nc, nc, nc, IN
     sm_config_set_out_pins(&c, pin, 10);
     sm_config_set_set_pins(&c, pin + 10, 3); // Max is 5.
@@ -105,58 +104,58 @@ static inline void ram4164_program_init(PIO pio, uint sm, uint offset, uint pin)
 }
 
 // Routines for reading and writing memory through the FIFOs
-int ram4164_ram_read(int addr)
+int ram41256_ram_read(int addr)
 {
     uint d;
     pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
                         0 << 1 |                // Write flag
-                        (addr & 0xff) << 2 |    // Row address
-                        (addr & 0xff00) << 2|   // Column address
-                        ((0 & 1) << 19));       // Data bit
+                        (addr & 0x1ff) << 2 |    // Row address
+                        (addr >> 9) << 11|   // Column address
+                        ((0 & 1) << 20));       // Data bit
     while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for data to arrive
     d = pio_sm_get(pio, sm);                 // Return the data
     //gpio_put(GPIO_LED, d);
     return d;
 }
 
-void ram4164_ram_write(int addr, int data)
+void ram41256_ram_write(int addr, int data)
 {
     pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
                         1 << 1 |                // Write flag
-                        (addr & 0xff) << 2 |    // Row address
-                        (addr & 0xff00) << 2|   // Column address
-                        ((data & 1) << 19));    // Data bit
+                        (addr & 0x1ff) << 2 |    // Row address
+                        (addr >> 9) << 11|   // Column address
+                        ((data & 1) << 20));    // Data bit
     while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
     pio_sm_get(pio, sm);                        // Discard the dummy data bit
 }
 
 // Routines to set up and tear down the PIO program (and the RAM test)
-void ram4164_setup_pio(uint speed_grade)
+void ram41256_setup_pio(uint speed_grade)
 {
     uint pin = 5;
-    set_current_pio_program(&ram4164_program);
+    set_current_pio_program(&ram41256_program);
     // Patches the program with the correct delay values
-    pio_patch_delays(ram4164_delays[speed_grade], RAM4164_DELAYS);
+    pio_patch_delays(ram41256_delays[speed_grade], RAM41256_DELAYS);
     bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(get_current_pio_program(), &pio, &sm, &offset, pin, 17, true);
-    ram4164_program_init(pio, sm, offset, pin);
+    ram41256_program_init(pio, sm, offset, pin);
     pio_sm_set_enabled(pio, sm, true);
 }
 
-void ram4164_teardown_pio()
+void ram41256_teardown_pio()
 {
     pio_sm_set_enabled(pio, sm, false);
-    pio_remove_program_and_unclaim_sm(&ram4164_program, pio, sm, offset);
+    pio_remove_program_and_unclaim_sm(&ram41256_program, pio, sm, offset);
 }
 
 // This RAM chip configuration
-static const mem_chip_t ram4164_chip = { .setup_pio = ram4164_setup_pio,
-                                          .teardown_pio = ram4164_teardown_pio,
-                                          .ram_read = ram4164_ram_read,
-                                          .ram_write = ram4164_ram_write,
-                                          .mem_size = 65536,
-                                          .speed_grades = RAM4164_DELAYS,
-                                          .chip_name = "4164 (64Kx1)",
-                                          .speed_names = {"100ns", "120ns", "150ns", "200ns", "250ns"} };
+static const mem_chip_t ram41256_chip = { .setup_pio = ram41256_setup_pio,
+                                          .teardown_pio = ram41256_teardown_pio,
+                                          .ram_read = ram41256_ram_read,
+                                          .ram_write = ram41256_ram_write,
+                                          .mem_size = 262144,
+                                          .speed_grades = RAM41256_DELAYS,
+                                          .chip_name = "41256 (256Kx1)",
+                                          .speed_names = {"70ns", "80ns", "85ns", "100ns", "120ns", "150ns"} };
 
 
 
