@@ -430,7 +430,8 @@ void do_status()
         drum_anim++;
         if (drum_anim > 8191) {
             drum_anim = 0;
-            if (drum_st++ > 3) drum_st = 0;
+            drum_st++;
+            if (drum_st > 3) drum_st = 0;
             st7789_fill(164, 80, 32, 32, COLOR_LTGRAY);
             switch (drum_st) {
                 case 0:
