@@ -1,4 +1,4 @@
-24113910438788053
+24126011670615622
 Active
 ADAFRUIT_4383
 
@@ -7174,6 +7174,20 @@ DB62
 0
 64
 63
+Conn
+DIN41612_C_3x32_Female_Horizontal_THT_Rev
+DIN41612 connector, type C, Horizontal, 3 rows 32 pins wide, https://www.erni-x-press.com/de/downloads/kataloge/englische_kataloge/erni-din41612-iec60603-2-e.pdf
+DIN 41612 IEC 60603 C
+0
+96
+96
+Conn
+DIN41612_C_3x32_Female_Horizontal_THT_Rev_1
+DIN41612 connector, type C, Horizontal, 3 rows 32 pins wide, https://www.erni-x-press.com/de/downloads/kataloge/englische_kataloge/erni-din41612-iec60603-2-e.pdf
+DIN 41612 IEC 60603 C
+0
+96
+96
 Conn
 DSUB-13W3
 
@@ -58939,6 +58953,41 @@ heatsink
 0
 0
 0
+IBM
+MechDrill066
+
+
+0
+0
+0
+IBM
+Pad_K
+
+
+0
+1
+1
+IBM
+PlugConnector
+
+
+0
+24
+24
+IBM
+SLT5X5
+
+
+0
+25
+25
+IBM
+SLT5X5_XB1_XC5
+
+
+0
+23
+23
 Inductor_SMD
 L_6.3x6.3_H3
 Choke, SMD, 6.3x6.3mm 3mm height
