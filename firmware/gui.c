@@ -240,6 +240,13 @@ uint8_t gui_listbox(gui_listbox_t *lb, list_action_t act)
     uint16_t fg, bg;
     height = 20 * lb->vis_lines + 4;
 
+    if (lb->sel_line >= lb->tot_lines) {
+        lb->sel_line = lb->tot_lines - 1;
+    }
+    if (lb->start_line > lb->tot_lines - lb->vis_lines) {
+        lb->start_line = lb->tot_lines - lb->vis_lines;
+    }
+
     if (act == LIST_ACTION_UP) {
         if (lb->sel_line > 0) {
             lb->sel_line--;
