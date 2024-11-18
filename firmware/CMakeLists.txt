@@ -22,6 +22,7 @@ target_compile_definitions(pmemtest PRIVATE
 pico_generate_pio_header(pmemtest ${CMAKE_CURRENT_LIST_DIR}/ram4164.pio)
 pico_generate_pio_header(pmemtest ${CMAKE_CURRENT_LIST_DIR}/ram4116.pio)
 pico_generate_pio_header(pmemtest ${CMAKE_CURRENT_LIST_DIR}/ram41256.pio)
+pico_generate_pio_header(pmemtest ${CMAKE_CURRENT_LIST_DIR}/ram44256.pio)
 
 target_sources(pmemtest PRIVATE pmemtest.c st7789.c gui.c pio_patcher.c)
 

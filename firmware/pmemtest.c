@@ -15,6 +15,7 @@ uint offset; // Returns offset of starting instruction
 #include "ram4116.pio.h"
 #include "ram4164.pio.h"
 #include "ram41256.pio.h"
+#include "ram44256.pio.h"
 
 #include "st7789.h"
 
@@ -46,8 +47,8 @@ gui_listbox_t *cur_menu;
 char *main_menu_items[MAIN_MENU_ITEMS];
 gui_listbox_t main_menu = {7, 40, 220, MAIN_MENU_ITEMS, 4, 0, 0, main_menu_items};
 
-#define NUM_CHIPS 3
-const mem_chip_t *chip_list[] = {&ram4116_chip, &ram4164_chip, &ram41256_chip};
+#define NUM_CHIPS 4
+const mem_chip_t *chip_list[] = {&ram4116_chip, &ram4164_chip, &ram41256_chip, &ram44256_chip};
 
 gui_listbox_t speed_menu = {7, 40, 220, 0, 4, 0, 0, 0};
 
@@ -630,16 +631,15 @@ int main() {
 // Testing
 #if 0
     power_on();
-//    sleep_ms(500);
-    prepare_ram_pio();
-//    sleep_ms(10);
-        for (i=0; i < 100; i++) {
-//            ram_read(i&7);
-//            ram_write(i&7, 1);
-//            ram_read(i&7);
-//            ram_write(i&7, 0);
-              gpio_put(GPIO_LED, marchb_test(8));
-        }
+    ram44256_setup_pio(5);
+    sleep_ms(10);
+    for (i=0; i < 100; i++) {
+        ram44256_ram_read(i&7);
+        ram44256_ram_write(i&7, 1);
+        ram44256_ram_read(i&7);
+        ram44256_ram_write(i&7, 0);
+//gpio_put(GPIO_LED, marchb_test(8));
+    }
     while(1) {}
 #endif
 

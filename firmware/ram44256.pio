@@ -1,0 +1,174 @@
+;
+; 44256 Test Program
+;
+
+; Pin Assignments
+; SP0  = DQ0
+; SP1  = DQ1
+; SP2  = DQ2
+; SP3  = DQ3
+; SP4  = OE
+; SP5  = A0
+; SP6  = A1
+; SP7  = A2
+; SP8  = A3
+; SP9  = A4
+; SP10 = A5
+; SP11 = A6
+; SP12 = A7
+; SP13 = A8
+; SP14 = RAS#
+; SP15 = CAS#
+; SP16 = WE#
+
+; set pins: WR, CAS, RAS
+.pio_version 1 // PIO version 1 since we need to mov pindirs
+.program ram44256
+; Note: We need to update the address lines and the RAS# at the same time.
+    jmp begin
+full_transfer:        ; (delay val at end of instr)
+    nop [1]           ; [0] ES44
+    nop [2]           ; 264.0 [26] tRC = 260.7ns
+    out pins, 14      ; 3.3    Load row address (and dummy values for data outputs)
+    set pins, 0b110   ; 6.6    Lower RAS#
+    nop [3]           ; 26.4   [5] tRCD (RAS to CAS) = 26.4ns
+cas_only_transfer:
+    out pins, 14      ; 29.7     Load col address + write data + write enable (setup for write data?)
+    jmp !x skip_wr    ; 33
+    mov pindirs, ~NULL ; All outputs
+    set pins, 0b000   ; 36.3     Lower CAS#, WR#
+    jmp skip_wr2      ; 39.6
+skip_wr:
+    set x, 0b01111 ; data pins are inputs
+    mov pindirs, ~x; preserve upper bits as 1 (output)
+    set pins, 0b100   ; 36.3     Lower CAS#
+    nop               ; 39.6
+skip_wr2:
+    mov OSR, NULL     ; 42.9     Clear OSR  ES 8cyc+[3]=2=10
+    nop [4]           ; 56.1     [3] ES 10+[4]=14
+    set pins, 0b100   ; 59.4     Raise WR#  tWCH = 26.4ns. ES1+14=15
+; Output enable is low but this shouldn't matter
+    out pins, 14      ; 62.7     Clear addr+data. tCAH, tDH = 29.7ns. ES1+15=16
+    nop [5]           ; 108.9    [13] total = tRSH, tRSH ES 16+[5]=23
+    in pins, 4        ; 112.2    Get bit tCAC = 75.9ns ES 24
+    set pins, 0b110   ; 115.5    Raise CAS#. tCAS = 79.2ns ES 25
+; outputs are still active for up to 30ns after rising edge of cas
+; only turn on our output pindirs after that.
+    push noblock [6]      ; 118.8    ES 26  [9] ES27+[6]=37
+    jmp !y begin      ; 155.1 Raise RAS# only if we are doing a full transfer ES38
+    jmp skip_ras      ; 158.4
+begin:
+    set pins, 0b111   ; 158.4 raise RAS#. tRAS=151.8ns  ES39.  = 3.3*37=122.1ns
+skip_ras:
+    pull block        ; 161.7 Wait for new data to arrive ES40
+    out y, 1          ; 165.0 get first bit which tells us if this is fast page mode ES41
+    out x, 1          ; 168.3 get second bit which tells us if we are in write mode. ES42
+    jmp !y full_transfer ; 171.6 ES43
+    out NULL, 9 [7]           ; 174.9 Throw out row address
+    jmp cas_only_transfer ; 178.2 Fast page mode tCP=22*3.3=72.6ns
+
+
+% c-sdk {
+
+#define RAM44256_DELAYS 6
+static const uint8_t ram44256_delays[6][32] = {{0, 0, 10, 4,  1,  0,  1,  0},    // 70ns
+                                               {0, 0, 13, 4,  1,  1,  3,  0},    // 80ns
+                                               {0, 0, 15, 2,  1,  5,  2,  0},    // 85ns
+                                               {0, 0, 14, 4,  2,  0,  9,  0},    // 100ns
+                                               {0, 0, 22, 4,  4,  6,  7,  0},    // 120ns
+                                               {0, 0, 25, 4,  5,  10, 20, 0} };  // 150ns
+
+static inline void ram44256_program_init(PIO pio, uint sm, uint offset, uint pin) {
+    uint count;
+
+    // Set up 17 total pins
+    for (count = 0; count < 17; count++) {
+        pio_gpio_init(pio, pin + count);
+        gpio_set_slew_rate(pin + count, GPIO_SLEW_RATE_FAST);
+        gpio_set_drive_strength(pin + count, GPIO_DRIVE_STRENGTH_4MA);
+    }
+    pio_sm_set_consecutive_pindirs(pio, sm, pin + 4, 17, true); // true=output
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 4, false); // false=input
+
+    pio_sm_set_clkdiv(pio, sm, 1); // should just be the default.
+
+    pio_sm_config c = ram44256_program_get_default_config(offset);
+    sm_config_set_out_pins(&c, pin, 14);
+    sm_config_set_set_pins(&c, pin + 14, 3); // Max is 5.
+    sm_config_set_in_pins(&c, pin);
+
+    // Shift right, Autopull off, 30 bits (1 + 1 + 14 + 14) at a time
+    sm_config_set_out_shift(&c, true, false, 30);
+    // Shift left, Autopull on, 4 bits
+    sm_config_set_in_shift(&c, false, false, 4);
+
+ //   hw_set_bits(&pio->input_sync_bypass, 1u << pin); to bypass synchronization on an input
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+// Routines for reading and writing memory through the FIFOs
+int ram44256_ram_read(int addr)
+{
+    uint d;
+    // fpm flag, write flag, 14 bits of data, oe, rasaddr, 14 bits of data, oe, casaddr
+    // aaaaaaaaaodddd_aaaaaaaaaoddddwf
+
+    pio_sm_put(pio, sm, 0 |                      // Fast page mode flag
+                        (0 << 1) |               // Write flag
+                        (1 << 6) |               // Initial OE is high
+                        ((addr & 0x1ff) << 7) |  // Row address
+                        (0 << 20) |              // Final OE is low (for read)
+                        ((addr >> 9) << 21));    // Column address
+
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {}  // Wait for data to arrive
+    d = pio_sm_get(pio, sm);                 // Return the data
+    //gpio_put(GPIO_LED, d);
+    return d;
+}
+
+void ram44256_ram_write(int addr, int data)
+{
+    pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
+                        (1 << 1) |              // Write flag
+                        (1 << 6) |              // OE is high
+                        ((addr & 0x1ff) << 7) | // Row address
+                        ((data & 0xf) << 16) |  // Data nibble
+                        (1 << 20) |             // Final OE is still high (write mode)
+                        ((addr >> 9) << 21));   // Column address
+
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
+    pio_sm_get(pio, sm);                        // Discard the dummy data bit
+}
+
+// Routines to set up and tear down the PIO program (and the RAM test)
+void ram44256_setup_pio(uint speed_grade)
+{
+    uint pin = 5;
+    set_current_pio_program(&ram44256_program);
+    // Patches the program with the correct delay values
+    pio_patch_delays(ram44256_delays[speed_grade], RAM41256_DELAYS);
+    bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(get_current_pio_program(), &pio, &sm, &offset, pin, 17, true);
+    ram44256_program_init(pio, sm, offset, pin);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+void ram44256_teardown_pio()
+{
+    pio_sm_set_enabled(pio, sm, false);
+    pio_remove_program_and_unclaim_sm(&ram44256_program, pio, sm, offset);
+}
+
+// This RAM chip configuration
+static const mem_chip_t ram44256_chip = { .setup_pio = ram44256_setup_pio,
+                                          .teardown_pio = ram44256_teardown_pio,
+                                          .ram_read = ram44256_ram_read,
+                                          .ram_write = ram44256_ram_write,
+                                          .mem_size = 262144,
+                                          .speed_grades = RAM44256_DELAYS,
+                                          .chip_name = "44256 (256Kx4)",
+                                          .speed_names = {"70ns", "80ns", "85ns", "100ns", "120ns", "150ns"} };
+
+
+
+%}
