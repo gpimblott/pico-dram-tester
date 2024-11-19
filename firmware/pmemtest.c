@@ -41,6 +41,8 @@ uint offset; // Returns offset of starting instruction
 
 volatile int cur_addr;
 
+static uint ram_bit_mask;
+
 gui_listbox_t *cur_menu;
 
 #define MAIN_MENU_ITEMS 8
@@ -74,8 +76,9 @@ void setup_main_menu()
 // Function queue entry for dispatching worker functions
 typedef struct
 {
-    uint32_t (*func)(uint32_t);
+    uint32_t (*func)(uint32_t, uint32_t);
     uint32_t data;
+    uint32_t data2;
 } queue_entry_t;
 
 queue_t call_queue;
@@ -94,7 +97,7 @@ void core1_entry() {
 
         queue_remove_blocking(&call_queue, &entry);
 
-        int32_t result = entry.func(entry.data);
+        int32_t result = entry.func(entry.data, entry.data2);
 
         queue_add_blocking(&results_queue, &result);
     }
@@ -142,25 +145,25 @@ void ram_fill(int range, int data)
 
 static inline bool me_r0(int a)
 {
-    int bit = ram_read(a);
+    int bit = ram_read(a) & ram_bit_mask;
     return (bit == 0);
 }
 
 static inline bool me_r1(int a)
 {
-    int bit = ram_read(a);
-    return (bit == 1);
+    int bit = ram_read(a) & ram_bit_mask;
+    return (bit == ram_bit_mask);
 }
 
 static inline bool me_w0(int a)
 {
-    ram_write(a, 0);
+    ram_write(a, ~ram_bit_mask);
     return true;
 }
 
 static inline bool me_w1(int a)
 {
-    ram_write(a, 1);
+    ram_write(a, ram_bit_mask);
     return true;
 }
 
@@ -223,26 +226,37 @@ static inline bool march_element(int addr_size, bool descending, int algorithm)
     return true;
 }
 
-uint32_t marchb_test(uint32_t addr_size)
+uint32_t marchb_testbit(uint32_t addr_size)
 {
-    bool ret = true;
+    bool ret;
     me_w0(0); // ES Hack
-    printf("M0 ");
     ret = march_element(addr_size, false, 0);
     if (!ret) return false;
-    printf("M1 ");
     ret = march_element(addr_size, false, 1);
     if (!ret) return false;
-    printf("M2 ");
     ret = march_element(addr_size, false, 2);
     if (!ret) return false;
-    printf("M3 ");
     ret = march_element(addr_size, true, 3);
     if (!ret) return false;
-    printf("M4 ");
     ret = march_element(addr_size, true, 4);
     if (!ret) return false;
-    return (uint32_t)ret;
+    return true;
+}
+
+// Runs the memory test on the 2nd core
+uint32_t marchb_test(uint32_t addr_size, uint32_t bits)
+{
+    int failed = 0;
+    int bit = 0;
+
+    for (bit = 0; bit < bits; bit++) {
+        ram_bit_mask = 1 << bit;
+        if (!marchb_testbit(addr_size)) {
+            failed |= 1 << bit; // fail flag
+        }
+    }
+
+    return (uint32_t)failed;
 }
 
 int ram_toggle_check(int range, uint expected)
@@ -364,6 +378,9 @@ void update_test_gui(uint16_t addr, test_status_t status)
     st7789_fill(CELL_STAT_X + cx * 3, CELL_STAT_Y + cy * 3, 2, 2, col);
 }
 
+#define STATUS_ICON_X 155
+#define STATUS_ICON_Y 65
+
 // Show the RAM test console GUI
 void show_test_gui()
 {
@@ -384,8 +401,8 @@ void show_test_gui()
     }
 
     // Current test indicator
-    paint_status(120, 45, 100, "March B");
-    draw_icon(164, 80, &drum_icon0);
+    paint_status(120, 35, 110, "March B");
+    draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon0);
 }
 
 // Begins the RAM test with the selected RAM chip
@@ -399,7 +416,9 @@ void start_the_ram_test()
 
     // Dispatch the second core
     // (The memory size is from our memory description data structure)
-    queue_entry_t entry = {marchb_test, chip_list[main_menu.sel_line]->mem_size};
+    queue_entry_t entry = {marchb_test,
+                           chip_list[main_menu.sel_line]->mem_size,
+                           chip_list[main_menu.sel_line]->bits};
     queue_add_blocking(&call_queue, &entry);
 }
 
@@ -433,19 +452,19 @@ void do_status()
             drum_anim = 0;
             drum_st++;
             if (drum_st > 3) drum_st = 0;
-            st7789_fill(164, 80, 32, 32, COLOR_LTGRAY);
+            st7789_fill(STATUS_ICON_X, STATUS_ICON_Y, 32, 32, COLOR_LTGRAY);
             switch (drum_st) {
                 case 0:
-                    draw_icon(164, 80, &drum_icon0);
+                    draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon0);
                     break;
                 case 1:
-                    draw_icon(164, 80, &drum_icon1);
+                    draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon1);
                     break;
                 case 2:
-                    draw_icon(164, 80, &drum_icon2);
+                    draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon2);
                     break;
                 case 3:
-                    draw_icon(164, 80, &drum_icon3);
+                    draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon3);
                     break;
             }
         }
@@ -458,15 +477,21 @@ void do_status()
             queue_remove_blocking(&results_queue, &retval);
             // Show the completion status
             gui_state = TEST_RESULTS;
-            st7789_fill(164, 80, 32, 32, COLOR_LTGRAY);
-            if (retval) {
-                paint_status(120, 45, 100, "Passed!");
-                draw_icon(164, 80, &check_icon);
+            st7789_fill(STATUS_ICON_X, STATUS_ICON_Y, 32, 32, COLOR_LTGRAY); // Erase icon
+            if (retval == 0) {
+                paint_status(120, 35, 110, "Passed!");
+                draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &check_icon);
             } else {
-                paint_status(120, 45, 100, "Failed.");
-                draw_icon(164, 80, &error_icon);
+                paint_status(120, 35, 110, "Failed");
+                draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &error_icon);
+                if (chip_list[main_menu.sel_line]->bits == 4) {
+                    sprintf(retstring, "Bitmask %d%d%d%d", (retval >> 3) & 1,
+                                                           (retval >> 2) & 1,
+                                                            (retval >> 1) & 1,
+                                                            (retval & 1));
+                   paint_status(120, 105, 110, retstring);
+                }
             }
-            // TODO: Some sort of status text indicating the type of failure?
         }
     }
 }
@@ -638,7 +663,7 @@ int main() {
         ram44256_ram_write(i&7, 1);
         ram44256_ram_read(i&7);
         ram44256_ram_write(i&7, 0);
-//gpio_put(GPIO_LED, marchb_test(8));
+//gpio_put(GPIO_LED, marchb_test(8, 1));
     }
     while(1) {}
 #endif
@@ -652,7 +677,7 @@ int main() {
     while(1) {
         //retval = ramtest(65536);
 //        printf("Begin march test.\n");
-        retval = marchb_test(65536);
+        retval = marchb_test(65536, 1);
 //        printf("Rv: %d\n", retval);
     }
 

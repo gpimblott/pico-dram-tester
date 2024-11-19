@@ -153,6 +153,7 @@ static const mem_chip_t ram41256_chip = { .setup_pio = ram41256_setup_pio,
                                           .ram_read = ram41256_ram_read,
                                           .ram_write = ram41256_ram_write,
                                           .mem_size = 262144,
+                                          .bits = 1,
                                           .speed_grades = RAM41256_DELAYS,
                                           .chip_name = "41256 (256Kx1)",
                                           .speed_names = {"70ns", "80ns", "85ns", "100ns", "120ns", "150ns"} };

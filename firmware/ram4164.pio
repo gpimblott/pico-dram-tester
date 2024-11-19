@@ -154,6 +154,7 @@ static const mem_chip_t ram4164_chip = { .setup_pio = ram4164_setup_pio,
                                           .ram_read = ram4164_ram_read,
                                           .ram_write = ram4164_ram_write,
                                           .mem_size = 65536,
+                                          .bits = 1,
                                           .speed_grades = RAM4164_DELAYS,
                                           .chip_name = "4164 (64Kx1)",
                                           .speed_names = {"100ns", "120ns", "150ns", "200ns", "250ns"} };

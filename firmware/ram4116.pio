@@ -152,6 +152,7 @@ static const mem_chip_t ram4116_chip = { .setup_pio = ram4116_setup_pio,
                                           .ram_read = ram4116_ram_read,
                                           .ram_write = ram4116_ram_write,
                                           .mem_size = 16384,
+                                          .bits = 1,
                                           .speed_grades = RAM4116_DELAYS,
                                           .chip_name = "4116 (16Kx1)",
                                           .speed_names = {"120ns", "150ns", "200ns", "250ns", "300ns"} };
