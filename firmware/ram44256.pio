@@ -2,6 +2,11 @@
 ; 44256 Test Program
 ;
 
+; fixme: how to keep OE high normally (except for read)
+; fixme: timings
+
+; Note: 'set PINDIRS' also sets all high order bits to 0, so I can't use it!
+
 ; Pin Assignments
 ; SP0  = DQ0
 ; SP1  = DQ1
@@ -50,8 +55,8 @@ skip_wr2:
 ; Output enable is low but this shouldn't matter
     out pins, 14      ; 62.7     Clear addr+data. tCAH, tDH = 29.7ns. ES1+15=16
     nop [5]           ; 108.9    [13] total = tRSH, tRSH ES 16+[5]=23
-    in pins, 4        ; 112.2    Get bit tCAC = 75.9ns ES 24
     set pins, 0b110   ; 115.5    Raise CAS#. tCAS = 79.2ns ES 25
+    in pins, 4
 ; outputs are still active for up to 30ns after rising edge of cas
 ; only turn on our output pindirs after that.
     push noblock [6]      ; 118.8    ES 26  [9] ES27+[6]=37
@@ -64,19 +69,18 @@ skip_ras:
     out y, 1          ; 165.0 get first bit which tells us if this is fast page mode ES41
     out x, 1          ; 168.3 get second bit which tells us if we are in write mode. ES42
     jmp !y full_transfer ; 171.6 ES43
-    out NULL, 9 [7]           ; 174.9 Throw out row address
+    out NULL, 14 [7]           ; 174.9 Throw out row address
     jmp cas_only_transfer ; 178.2 Fast page mode tCP=22*3.3=72.6ns
 
 
 % c-sdk {
-
-#define RAM44256_DELAYS 6
-static const uint8_t ram44256_delays[6][32] = {{0, 0, 10, 4,  1,  0,  1,  0},    // 70ns
-                                               {0, 0, 13, 4,  1,  1,  3,  0},    // 80ns
-                                               {0, 0, 15, 2,  1,  5,  2,  0},    // 85ns
-                                               {0, 0, 14, 4,  2,  0,  9,  0},    // 100ns
-                                               {0, 0, 22, 4,  4,  6,  7,  0},    // 120ns
-                                               {0, 0, 25, 4,  5,  10, 20, 0} };  // 150ns
+#define GPIO_LED 25
+#define RAM44256_DELAYS 5
+static const uint8_t ram44256_delays[5][32] = {{0, 0,  6, 2,  1,  2,  1,  0},    // 60ns
+                                               {0, 0, 11, 2,  1,  2,  2,  0},    // 70ns
+                                               {0, 0, 17, 3,  1,  2,  4,  0},    // 80ns
+                                               {0, 0, 21, 3,  3,  2,  8,  0},    // 100ns
+                                               {0, 0, 23, 3,  4,  2,  13,  0} };  // 120ns
 
 static inline void ram44256_program_init(PIO pio, uint sm, uint offset, uint pin) {
     uint count;
@@ -102,7 +106,7 @@ static inline void ram44256_program_init(PIO pio, uint sm, uint offset, uint pin
     // Shift left, Autopull on, 4 bits
     sm_config_set_in_shift(&c, false, false, 4);
 
- //   hw_set_bits(&pio->input_sync_bypass, 1u << pin); to bypass synchronization on an input
+    hw_set_bits(&pio->input_sync_bypass, 0xf << pin); //to bypass synchronization on an input
     pio_sm_init(pio, sm, offset, &c);
     pio_sm_set_enabled(pio, sm, true);
 }
@@ -123,7 +127,7 @@ int ram44256_ram_read(int addr)
 
     while (pio_sm_is_rx_fifo_empty(pio, sm)) {}  // Wait for data to arrive
     d = pio_sm_get(pio, sm);                 // Return the data
-    //gpio_put(GPIO_LED, d);
+//    gpio_put(GPIO_LED, d);
     return d;
 }
 
@@ -167,7 +171,7 @@ static const mem_chip_t ram44256_chip = { .setup_pio = ram44256_setup_pio,
                                           .mem_size = 262144,
                                           .speed_grades = RAM44256_DELAYS,
                                           .chip_name = "44256 (256Kx4)",
-                                          .speed_names = {"70ns", "80ns", "85ns", "100ns", "120ns", "150ns"} };
+                                          .speed_names = {"60ns", "70ns", "80ns", "100ns", "120ns"} };
 
 
 
