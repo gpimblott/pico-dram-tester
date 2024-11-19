@@ -98,7 +98,7 @@ static inline void ram41256_program_init(PIO pio, uint sm, uint offset, uint pin
     // Shift left, Autopull on, 1 bit
     sm_config_set_in_shift(&c, false, false, 1);
 
- //   hw_set_bits(&pio->input_sync_bypass, 1u << pin); to bypass synchronization on an input
+    hw_set_bits(&pio->input_sync_bypass, 1u << (pin + 16)); //to bypass synchronization on an input
     pio_sm_init(pio, sm, offset, &c);
     pio_sm_set_enabled(pio, sm, true);
 }
