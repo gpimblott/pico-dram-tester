@@ -191,15 +191,17 @@ void ram4464_ram_write(int addr, int data)
 
 
 // Routines to set up and tear down the PIO program (and the RAM test)
-void ram44256_64_setup_pio(uint speed_grade, int ic)
+void ram44256_64_16_setup_pio(uint speed_grade, int ic)
 {
     uint pin = 5;
     set_current_pio_program(&ram44256_program);
     // Patches the program with the correct delay values
-    if (ic = 1) {
-        pio_patch_delays(ram44256_delays[speed_grade], RAM41256_DELAYS);
+    if (ic == 2) {
+        pio_patch_delays(ram44256_delays[speed_grade], RAM44256_DELAYS);
+    } else if (ic == 1) {
+        pio_patch_delays(ram4464_delays[speed_grade], RAM4464_DELAYS);
     } else {
-        pio_patch_delays(ram4464_delays[speed_grade], RAM4164_DELAYS);
+        pio_patch_delays(ram4416_delays[speed_grade], RAM4416_DELAYS);
     }
     bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(get_current_pio_program(), &pio, &sm, &offset, pin, 17, true);
     ram44256_program_init(pio, sm, offset, pin);
@@ -208,12 +210,17 @@ void ram44256_64_setup_pio(uint speed_grade, int ic)
 
 void ram44256_setup_pio(uint speed_grade)
 {
-    ram44256_64_setup_pio(speed_grade, 1);
+    ram44256_64_16_setup_pio(speed_grade, 2);
 }
 
 void ram4464_setup_pio(uint speed_grade)
 {
-    ram44256_64_setup_pio(speed_grade, 0);
+    ram44256_64_16_setup_pio(speed_grade, 1);
+}
+
+void ram4416_setup_pio(uint speed_grade)
+{
+   ram44256_64_16_setup_pio(speed_grade, 0);
 }
 
 void ram44256_teardown_pio()
@@ -243,7 +250,7 @@ static const mem_chip_t ram4464_chip  = { .setup_pio = ram4464_setup_pio,
                                           .chip_name = "4464 (64Kx4)",
                                           .speed_names = {"60ns", "70ns", "80ns", "100ns", "120ns", "150ns"} };
 
-static const mem_chip_t ram4416_chip  = { .setup_pio = ram4464_setup_pio,
+static const mem_chip_t ram4416_chip  = { .setup_pio = ram4416_setup_pio,
                                           .teardown_pio = ram44256_teardown_pio,
                                           .ram_read = ram4464_ram_read,
                                           .ram_write = ram4464_ram_write,
@@ -252,7 +259,6 @@ static const mem_chip_t ram4416_chip  = { .setup_pio = ram4464_setup_pio,
                                           .speed_grades = RAM4416_DELAYS,
                                           .chip_name = "4416 (16Kx4)",
                                           .speed_names = {"120ns", "150ns", "200ns"} };
-
 
 
 %}
