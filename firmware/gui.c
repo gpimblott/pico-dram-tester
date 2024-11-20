@@ -239,12 +239,17 @@ uint8_t gui_listbox(gui_listbox_t *lb, list_action_t act)
     int count, st;
     uint16_t fg, bg;
     height = 20 * lb->vis_lines + 4;
+    int vis_count;
 
     if (lb->sel_line >= lb->tot_lines) {
         lb->sel_line = lb->tot_lines - 1;
     }
-    if (lb->start_line > lb->tot_lines - lb->vis_lines) {
-        lb->start_line = lb->tot_lines - lb->vis_lines;
+    if (lb->tot_lines >= lb->vis_lines) {
+        if (lb->start_line > lb->tot_lines - lb->vis_lines) {
+            lb->start_line = lb->tot_lines - lb->vis_lines;
+        }
+    } else {
+        lb->start_line = 0;
     }
 
     if (act == LIST_ACTION_UP) {
@@ -268,7 +273,9 @@ uint8_t gui_listbox(gui_listbox_t *lb, list_action_t act)
                     lb->sy + 2, DEFAULT_SCROLLBAR_WIDTH, height - 4,
                     lb->vis_lines, lb->tot_lines, lb->start_line);
 
-    for (count = 0; count < lb->vis_lines; count++) {
+    vis_count = (lb->tot_lines < lb->vis_lines) ? lb->tot_lines : lb->vis_lines;
+
+    for (count = 0; count < vis_count; count++) {
         st = lb->start_line + count;
         if (st == lb->sel_line) {
             fg = COLOR_WHITE;
