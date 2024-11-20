@@ -1,5 +1,5 @@
 ;
-; 44256 Test Program
+; 44256/64 Test Program
 ;
 
 ; fixme: how to keep OE high normally (except for read)
@@ -21,7 +21,7 @@
 ; SP10 = A5
 ; SP11 = A6
 ; SP12 = A7
-; SP13 = A8
+; SP13 = A8 (nc on 4464)
 ; SP14 = RAS#
 ; SP15 = CAS#
 ; SP16 = WE#
@@ -80,7 +80,20 @@ static const uint8_t ram44256_delays[5][32] = {{0, 0,  6, 2,  1,  2,  1,  0},   
                                                {0, 0, 11, 2,  1,  2,  2,  0},    // 70ns
                                                {0, 0, 17, 3,  1,  2,  4,  0},    // 80ns
                                                {0, 0, 21, 3,  3,  2,  8,  0},    // 100ns
-                                               {0, 0, 23, 3,  4,  2,  13,  0} };  // 120ns
+                                               {0, 0, 23, 3,  4,  2,  13, 0} };  // 120ns
+
+#define RAM4464_DELAYS 6
+static const uint8_t ram4464_delays[6][32] =  {{0, 0,  6, 2,  1,  2,  1,  0},    // 60ns
+                                               {0, 0, 11, 2,  1,  2,  2,  0},    // 70ns
+                                               {0, 0, 17, 3,  1,  2,  4,  0},    // 80ns
+                                               {0, 0, 17, 3,  6,  2,  9,  0},    // 100ns
+                                               {0, 0, 23, 3,  6,  5,  6,  0},    // 120ns
+                                               {0, 0, 26, 3, 10,  6,  10, 0} };  // 150ns
+
+#define RAM4416_DELAYS 3
+static const uint8_t ram4416_delays[3][32] =  {{0, 0, 26, 3, 10,  7,  0,  0},    // 120ns
+                                               {0, 0, 26, 3, 15,  3,  8,  0},    // 150ns
+                                               {0,12, 20, 3, 21,  8,  12, 3} };  // 200ns
 
 static inline void ram44256_program_init(PIO pio, uint sm, uint offset, uint pin) {
     uint count;
@@ -131,6 +144,22 @@ int ram44256_ram_read(int addr)
     return d;
 }
 
+int ram4464_ram_read(int addr)
+{
+    uint d;
+    pio_sm_put(pio, sm, 0 |                      // Fast page mode flag
+                        (0 << 1) |               // Write flag
+                        (1 << 6) |               // Initial OE is high
+                        ((addr & 0x0ff) << 7) |  // Row address
+                        (0 << 20) |              // Final OE is low (for read)
+                        ((addr >> 8) << 21));    // Column address
+
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {}  // Wait for data to arrive
+    d = pio_sm_get(pio, sm);                 // Return the data
+    return d;
+}
+
+
 void ram44256_ram_write(int addr, int data)
 {
     pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
@@ -145,16 +174,46 @@ void ram44256_ram_write(int addr, int data)
     pio_sm_get(pio, sm);                        // Discard the dummy data bit
 }
 
+
+void ram4464_ram_write(int addr, int data)
+{
+    pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
+                        (1 << 1) |              // Write flag
+                        (1 << 6) |              // OE is high
+                        ((addr & 0xff) << 7) | // Row address
+                        ((data & 0xf) << 16) |  // Data nibble
+                        (1 << 20) |             // Final OE is still high (write mode)
+                        ((addr >> 8) << 21));   // Column address
+
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
+    pio_sm_get(pio, sm);                        // Discard the dummy data bit
+}
+
+
 // Routines to set up and tear down the PIO program (and the RAM test)
-void ram44256_setup_pio(uint speed_grade)
+void ram44256_64_setup_pio(uint speed_grade, int ic)
 {
     uint pin = 5;
     set_current_pio_program(&ram44256_program);
     // Patches the program with the correct delay values
-    pio_patch_delays(ram44256_delays[speed_grade], RAM41256_DELAYS);
+    if (ic = 1) {
+        pio_patch_delays(ram44256_delays[speed_grade], RAM41256_DELAYS);
+    } else {
+        pio_patch_delays(ram4464_delays[speed_grade], RAM4164_DELAYS);
+    }
     bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(get_current_pio_program(), &pio, &sm, &offset, pin, 17, true);
     ram44256_program_init(pio, sm, offset, pin);
     pio_sm_set_enabled(pio, sm, true);
+}
+
+void ram44256_setup_pio(uint speed_grade)
+{
+    ram44256_64_setup_pio(speed_grade, 1);
+}
+
+void ram4464_setup_pio(uint speed_grade)
+{
+    ram44256_64_setup_pio(speed_grade, 0);
 }
 
 void ram44256_teardown_pio()
@@ -173,6 +232,26 @@ static const mem_chip_t ram44256_chip = { .setup_pio = ram44256_setup_pio,
                                           .speed_grades = RAM44256_DELAYS,
                                           .chip_name = "44256 (256Kx4)",
                                           .speed_names = {"60ns", "70ns", "80ns", "100ns", "120ns"} };
+
+static const mem_chip_t ram4464_chip  = { .setup_pio = ram4464_setup_pio,
+                                          .teardown_pio = ram44256_teardown_pio,
+                                          .ram_read = ram4464_ram_read,
+                                          .ram_write = ram4464_ram_write,
+                                          .mem_size = 65536,
+                                          .bits = 4,
+                                          .speed_grades = RAM4464_DELAYS,
+                                          .chip_name = "4464 (64Kx4)",
+                                          .speed_names = {"60ns", "70ns", "80ns", "100ns", "120ns", "150ns"} };
+
+static const mem_chip_t ram4416_chip  = { .setup_pio = ram4464_setup_pio,
+                                          .teardown_pio = ram44256_teardown_pio,
+                                          .ram_read = ram4464_ram_read,
+                                          .ram_write = ram4464_ram_write,
+                                          .mem_size = 16384,
+                                          .bits = 4,
+                                          .speed_grades = RAM4416_DELAYS,
+                                          .chip_name = "4416 (16Kx4)",
+                                          .speed_names = {"120ns", "150ns", "200ns"} };
 
 
 
