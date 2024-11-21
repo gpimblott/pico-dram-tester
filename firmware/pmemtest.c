@@ -15,7 +15,7 @@ uint offset; // Returns offset of starting instruction
 #include "ram4116.pio.h"
 #include "ram4164.pio.h"
 #include "ram41256.pio.h"
-#include "ram44256.pio.h"
+#include "ram_4bit.pio.h"
 
 #include "st7789.h"
 
