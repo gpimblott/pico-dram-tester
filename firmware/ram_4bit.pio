@@ -21,7 +21,7 @@
 ; SP10 = A5
 ; SP11 = A6
 ; SP12 = A7
-; SP13 = A8 (nc on 4464)
+; SP13 = A8 (nc on 4464/16)
 ; SP14 = RAS#
 ; SP15 = CAS#
 ; SP16 = WE#
@@ -75,18 +75,20 @@ skip_ras:
 
 % c-sdk {
 #define GPIO_LED 25
+#define RAM_4BIT_DELAY_FIELDS 8
 #define RAM44256_DELAYS 5
-static const uint8_t ram44256_delays[5][32] = {{0, 0,  6, 2,  1,  2,  1,  0},    // 60ns
-                                               {0, 0, 11, 2,  1,  2,  2,  0},    // 70ns
-                                               {0, 0, 17, 3,  1,  2,  4,  0},    // 80ns
-                                               {0, 0, 21, 3,  3,  2,  8,  0},    // 100ns
-                                               {0, 0, 23, 3,  4,  2,  13, 0} };  // 120ns
+// increase [5] from 2 to 5.
+static const uint8_t ram44256_delays[5][32] = {{0, 0,  6, 2,  1,  7,  1,  0},    // 60ns
+                                               {0, 0, 11, 2,  1,  7,  2,  0},    // 70ns
+                                               {0, 0, 17, 3,  1,  7,  4,  0},    // 80ns
+                                               {0, 0, 21, 3,  3,  7,  3,  0},    // 100ns
+                                               {0, 0, 23, 3,  4,  7,  6,  0} };  // 120ns
 
 #define RAM4464_DELAYS 6
 static const uint8_t ram4464_delays[6][32] =  {{0, 0,  6, 2,  1,  2,  1,  0},    // 60ns
                                                {0, 0, 11, 2,  1,  2,  2,  0},    // 70ns
                                                {0, 0, 17, 3,  1,  2,  4,  0},    // 80ns
-                                               {0, 0, 17, 3,  6,  2,  9,  0},    // 100ns
+                                               {0, 0, 14, 3,  6,  5,  9,  0},    // 100ns
                                                {0, 0, 23, 3,  6,  5,  6,  0},    // 120ns
                                                {0, 0, 26, 3, 10,  6,  10, 0} };  // 150ns
 
@@ -159,6 +161,21 @@ int ram4464_ram_read(int addr)
     return d;
 }
 
+int ram4416_ram_read(int addr)
+{
+    uint d;
+    pio_sm_put(pio, sm, 0 |                      // Fast page mode flag
+                        (0 << 1) |               // Write flag
+                        (1 << 6) |               // Initial OE is high
+                        ((addr & 0x0ff) << 7) |  // Row address
+                        (0 << 20) |              // Final OE is low (for read)
+                        ((addr >> 8) << 22));    // Column address. Note that it starts at A1, not A0.
+
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {}  // Wait for data to arrive
+    d = pio_sm_get(pio, sm);                 // Return the data
+    return d;
+}
+
 
 void ram44256_ram_write(int addr, int data)
 {
@@ -189,6 +206,20 @@ void ram4464_ram_write(int addr, int data)
     pio_sm_get(pio, sm);                        // Discard the dummy data bit
 }
 
+void ram4416_ram_write(int addr, int data)
+{
+    pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
+                        (1 << 1) |              // Write flag
+                        (1 << 6) |              // OE is high
+                        ((addr & 0xff) << 7) | // Row address
+                        ((data & 0xf) << 16) |  // Data nibble
+                        (1 << 20) |             // Final OE is still high (write mode)
+                        ((addr >> 8) << 22));   // Column address. Note it starts at A1 not A0.
+
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
+    pio_sm_get(pio, sm);                        // Discard the dummy data bit
+}
+
 
 // Routines to set up and tear down the PIO program (and the RAM test)
 void ram44256_64_16_setup_pio(uint speed_grade, int ic)
@@ -197,11 +228,11 @@ void ram44256_64_16_setup_pio(uint speed_grade, int ic)
     set_current_pio_program(&ram44256_program);
     // Patches the program with the correct delay values
     if (ic == 2) {
-        pio_patch_delays(ram44256_delays[speed_grade], RAM44256_DELAYS);
+        pio_patch_delays(ram44256_delays[speed_grade], RAM_4BIT_DELAY_FIELDS);
     } else if (ic == 1) {
-        pio_patch_delays(ram4464_delays[speed_grade], RAM4464_DELAYS);
+        pio_patch_delays(ram4464_delays[speed_grade], RAM_4BIT_DELAY_FIELDS);
     } else {
-        pio_patch_delays(ram4416_delays[speed_grade], RAM4416_DELAYS);
+        pio_patch_delays(ram4416_delays[speed_grade], RAM_4BIT_DELAY_FIELDS);
     }
     bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(get_current_pio_program(), &pio, &sm, &offset, pin, 17, true);
     ram44256_program_init(pio, sm, offset, pin);
@@ -252,8 +283,8 @@ static const mem_chip_t ram4464_chip  = { .setup_pio = ram4464_setup_pio,
 
 static const mem_chip_t ram4416_chip  = { .setup_pio = ram4416_setup_pio,
                                           .teardown_pio = ram44256_teardown_pio,
-                                          .ram_read = ram4464_ram_read,
-                                          .ram_write = ram4464_ram_write,
+                                          .ram_read = ram4416_ram_read,
+                                          .ram_write = ram4416_ram_write,
                                           .mem_size = 16384,
                                           .bits = 4,
                                           .speed_grades = RAM4416_DELAYS,

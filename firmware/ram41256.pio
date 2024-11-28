@@ -66,6 +66,7 @@ skip_ras:
 % c-sdk {
 
 #define RAM41256_DELAYS 6
+#define RAM41256_DELAY_FIELDS 8
 static const uint8_t ram41256_delays[6][32] = {{0, 0, 10, 4,  1,  0,  1,  0},    // 70ns
                                                {0, 0, 13, 4,  1,  1,  3,  0},    // 80ns
                                                {0, 0, 15, 2,  1,  5,  2,  0},    // 85ns
@@ -135,7 +136,7 @@ void ram41256_setup_pio(uint speed_grade)
     uint pin = 5;
     set_current_pio_program(&ram41256_program);
     // Patches the program with the correct delay values
-    pio_patch_delays(ram41256_delays[speed_grade], RAM41256_DELAYS);
+    pio_patch_delays(ram41256_delays[speed_grade], RAM41256_DELAY_FIELDS);
     bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(get_current_pio_program(), &pio, &sm, &offset, pin, 17, true);
     ram41256_program_init(pio, sm, offset, pin);
     pio_sm_set_enabled(pio, sm, true);
