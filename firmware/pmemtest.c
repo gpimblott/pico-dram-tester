@@ -6,6 +6,7 @@
 #include "hardware/pio.h"
 #include "pio_patcher.h"
 #include "mem_chip.h"
+#include "xoroshiro64starstar.h"
 
 PIO pio;
 uint sm = 0;
@@ -48,6 +49,7 @@ volatile int stat_cur_addr;
 volatile int stat_old_addr;
 volatile int stat_cur_bit;
 volatile int stat_cur_test;
+volatile int stat_cur_subtest;
 
 static uint ram_bit_mask;
 
@@ -137,21 +139,7 @@ static inline void ram_write(int addr, int data)
     chip_list[main_menu.sel_line]->ram_write(addr, data);
 }
 
-int addr_map(int addr)
-{
-    return addr;
- //   return (addr >> 8) | ((addr & 0xFF) << 8);
-}
-
-// Fills the RAM with the provided data.
-void ram_fill(int range, int data)
-{
-    int i;
-    for (i = 0; i < range; i++) {
-        ram_write(addr_map(i), data);
-    }
-}
-
+// Low level routines for march-b algorithm
 static inline bool me_r0(int a)
 {
     int bit = ram_read(a) & ram_bit_mask;
@@ -210,7 +198,7 @@ static inline bool march_element(int addr_size, bool descending, int algorithm)
     int a;
     bool ret;
 
-    stat_cur_test = algorithm;
+    stat_cur_subtest = algorithm;
 
     for (stat_cur_addr = start; stat_cur_addr != end; stat_cur_addr += inc) {
         switch (algorithm) {
@@ -271,37 +259,73 @@ uint32_t marchb_test(uint32_t addr_size, uint32_t bits)
     return (uint32_t)failed;
 }
 
-int ram_toggle_check(int range, uint expected)
+uint32_t psrand_next_bits(uint32_t bits)
 {
-    int i, j;
-    uint bit;
-    int retval = -1;
-    for (i = 0; i < range; i++) {
-        bit = ram_read(addr_map(i));
-        if (bit != expected) retval = i; //return i;
-        //retval = (retval << 1) | (bit & 0x1);
-        gpio_put(15, bit);
-        gpio_put(15, bit);
-//        for (j = 0; j < 100; j++) {
-            gpio_put(15, 0);
-//        }
-        ram_write(addr_map(i), (~expected) & 1);
+    static int bitcount = 0;
+    static uint32_t cur_rand;
+    uint32_t out;
+
+    if (bitcount < bits) {
+        cur_rand = psrand_next();
+        bitcount = 32;
     }
-    return retval;
+
+    out = cur_rand & ((1 << (bits)) - 1);
+    cur_rand = cur_rand >> bits;
+    bitcount -= bits;
+    return out;
 }
 
-int ramtest(int range)
+#define PSEUDO_VALUES 8
+static const uint64_t artisanal_numbers[] = {4, 8, 15, 16, 23, 42, 78, 98};
+
+// Pseudorandom test
+uint32_t psrandom_test(uint32_t addr_size, uint32_t bits)
 {
-    int retval1, retval2;
-    ram_fill(range, 1);
-    retval1 = ram_toggle_check(range, 1);
-    retval2 = ram_toggle_check(range, 0);
-    printf("1: %x. 2: %x\n", retval1, retval2);
-    if (retval1 != -1) return retval1;
-    if (retval2 != -1) return retval2;
-    return -1;
+    uint i;
+    uint32_t bitsout;
+    uint32_t bitsin;
+    uint32_t bitshift = addr_size / 4;
+
+    // Write seeded pseudorandom data
+    for (i = 0; i < PSEUDO_VALUES; i++) {
+        stat_cur_subtest = i >> 2;
+        stat_cur_bit = i & 3;
+        psrand_seed(artisanal_numbers[i]);
+        for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
+            bitsout = psrand_next_bits(bits);
+            ram_write(stat_cur_addr, bits);
+        }
+
+        // Reseed and then read the data back
+        psrand_seed(artisanal_numbers[i]);
+        for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
+            bitsout = psrand_next_bits(bits);
+            bitsin = ram_read(stat_cur_addr);
+            if (bits != bitsin) {
+                return 1;
+            }
+        }
+    }
+
+    return 0;
 }
 
+static const char *ram_test_names[] = {"March-B", "Pseudo"};
+
+// Initial entry for the RAM test routines running
+// on the second CPU core.
+uint32_t all_ram_tests(uint32_t addr_size, uint32_t bits)
+{
+    int failed;
+    stat_cur_test = 0;
+    failed = marchb_test(addr_size, bits);
+    if (failed) return failed;
+    stat_cur_test = 1;
+    failed = psrandom_test(addr_size, bits);
+    if (failed) return failed;
+    return 0;
+}
 
 typedef struct {
     uint32_t pin;
@@ -396,7 +420,6 @@ bool drum_animation_cb(__unused struct repeating_timer *t)
     return true;
 }
 
-
 // Show the RAM test console GUI
 void show_test_gui()
 {
@@ -414,10 +437,11 @@ void show_test_gui()
     }
     stat_old_addr = 0;
     stat_cur_bit = 0;
-    stat_cur_test = 0;
+    stat_cur_test = -1;
+    stat_cur_subtest = 0;
 
     // Current test indicator
-    paint_status(120, 35, 110, "March B");
+    paint_status(120, 35, 110, "      ");
     draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon0);
     add_repeating_timer_ms(-100, drum_animation_cb, NULL, &drum_timer);
 }
@@ -433,7 +457,7 @@ void start_the_ram_test()
 
     // Dispatch the second core
     // (The memory size is from our memory description data structure)
-    queue_entry_t entry = {marchb_test,
+    queue_entry_t entry = {all_ram_tests,
                            chip_list[main_menu.sel_line]->mem_size,
                            chip_list[main_menu.sel_line]->bits};
     queue_add_blocking(&call_queue, &entry);
@@ -467,7 +491,7 @@ void do_visualization()
     int bitsize = chip_list[main_menu.sel_line]->bits;
     int new_addr = stat_cur_addr * 1024 / chip_list[main_menu.sel_line]->mem_size / bitsize;
     int bit = stat_cur_bit;
-    uint16_t col = cmap[stat_cur_test];
+    uint16_t col = cmap[stat_cur_subtest];
     int delta, i;
     int ox, oy = 0;
 
@@ -512,9 +536,17 @@ void do_status()
     char retstring[30];
     uint16_t v;
     static uint16_t v_prev = 0;
+    static int t_prev = -1;
 
     if (gui_state == DO_TEST) {
         do_visualization();
+
+        // Update the status text
+        if (t_prev != stat_cur_test) {
+            t_prev = stat_cur_test;
+            paint_status(120, 35, 110, "      ");
+            paint_status(120, 35, 110, (char *)ram_test_names[t_prev]);
+        }
 
         // Check official status
         if (!queue_is_empty(&results_queue)) {
@@ -724,7 +756,6 @@ int main() {
     }
 
     while(1) {
-        //retval = ramtest(65536);
 //        printf("Begin march test.\n");
         retval = marchb_test(65536, 1);
 //        printf("Rv: %d\n", retval);
