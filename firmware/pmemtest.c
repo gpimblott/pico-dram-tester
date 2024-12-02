@@ -48,7 +48,7 @@ uint offset; // Returns offset of starting instruction
 volatile int stat_cur_addr;
 volatile int stat_old_addr;
 volatile int stat_cur_bit;
-volatile int stat_cur_test;
+queue_t stat_cur_test;
 volatile int stat_cur_subtest;
 
 static uint ram_bit_mask;
@@ -311,18 +311,55 @@ uint32_t psrandom_test(uint32_t addr_size, uint32_t bits)
     return 0;
 }
 
-static const char *ram_test_names[] = {"March-B", "Pseudo"};
+uint32_t refresh_subtest(uint32_t addr_size, uint32_t bits, uint32_t time_delay)
+{
+    uint32_t bitsout;
+    uint32_t bitsin;
+
+    psrand_seed(artisanal_numbers[0]);
+    for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
+        bitsout = psrand_next_bits(bits);
+        ram_write(stat_cur_addr, bits);
+    }
+
+    sleep_us(time_delay);
+
+    psrand_seed(artisanal_numbers[0]);
+    for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
+        bitsout = psrand_next_bits(bits);
+        bitsin = ram_read(stat_cur_addr);
+        if (bits != bitsin) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+
+uint32_t refresh_test(uint32_t addr_size, uint32_t bits)
+{
+    return refresh_subtest(addr_size, bits, 500000);
+}
+
+
+static const char *ram_test_names[] = {"March-B", "Pseudo", "Refresh"};
 
 // Initial entry for the RAM test routines running
 // on the second CPU core.
 uint32_t all_ram_tests(uint32_t addr_size, uint32_t bits)
 {
     int failed;
-    stat_cur_test = 0;
+    int test = 0;
+    queue_add_blocking(&stat_cur_test, &test);
     failed = marchb_test(addr_size, bits);
     if (failed) return failed;
-    stat_cur_test = 1;
+    test = 1;
+    queue_add_blocking(&stat_cur_test, &test);
     failed = psrandom_test(addr_size, bits);
+    if (failed) return failed;
+    test = 2;
+    queue_add_blocking(&stat_cur_test, &test);
+    failed = refresh_test(addr_size, bits);
     if (failed) return failed;
     return 0;
 }
@@ -437,7 +474,6 @@ void show_test_gui()
     }
     stat_old_addr = 0;
     stat_cur_bit = 0;
-    stat_cur_test = -1;
     stat_cur_subtest = 0;
 
     // Current test indicator
@@ -536,16 +572,15 @@ void do_status()
     char retstring[30];
     uint16_t v;
     static uint16_t v_prev = 0;
-    static int t_prev = -1;
+    int test;
 
     if (gui_state == DO_TEST) {
         do_visualization();
 
         // Update the status text
-        if (t_prev != stat_cur_test) {
-            t_prev = stat_cur_test;
+        if (queue_try_remove(&stat_cur_test, &test)) {
             paint_status(120, 35, 110, "      ");
-            paint_status(120, 35, 110, (char *)ram_test_names[t_prev]);
+            paint_status(120, 35, 110, (char *)ram_test_names[test]);
         }
 
         // Check official status
@@ -721,6 +756,7 @@ int main() {
     // Set up second core
     queue_init(&call_queue, sizeof(queue_entry_t), 2);
     queue_init(&results_queue, sizeof(int32_t), 2);
+    queue_init(&stat_cur_test, sizeof(int), 2);
 
     // Second core will wait for the call queue.
     multicore_launch_core1(core1_entry);
