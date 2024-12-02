@@ -41,7 +41,13 @@ uint offset; // Returns offset of starting instruction
 #define GPIO_BACK_BTN 28
 #define GPIO_LED 25
 
-volatile int cur_addr;
+// Status shared variables between cores
+// Not really thread safe but this
+// status is unimportant.
+volatile int stat_cur_addr;
+volatile int stat_old_addr;
+volatile int stat_cur_bit;
+volatile int stat_cur_test;
 
 static uint ram_bit_mask;
 
@@ -204,22 +210,24 @@ static inline bool march_element(int addr_size, bool descending, int algorithm)
     int a;
     bool ret;
 
-    for (cur_addr = start; cur_addr != end; cur_addr += inc) {
+    stat_cur_test = algorithm;
+
+    for (stat_cur_addr = start; stat_cur_addr != end; stat_cur_addr += inc) {
         switch (algorithm) {
             case 0:
-                ret = marchb_m0(cur_addr);
+                ret = marchb_m0(stat_cur_addr);
                 break;
             case 1:
-                ret = marchb_m1(cur_addr);
+                ret = marchb_m1(stat_cur_addr);
                 break;
             case 2:
-                ret = marchb_m2(cur_addr);
+                ret = marchb_m2(stat_cur_addr);
                 break;
             case 3:
-                ret = marchb_m3(cur_addr);
+                ret = marchb_m3(stat_cur_addr);
                 break;
             case 4:
-                ret = marchb_m4(cur_addr);
+                ret = marchb_m4(stat_cur_addr);
                 break;
             default:
                 break;
@@ -253,6 +261,7 @@ uint32_t marchb_test(uint32_t addr_size, uint32_t bits)
     int bit = 0;
 
     for (bit = 0; bit < bits; bit++) {
+        stat_cur_bit = bit;
         ram_bit_mask = 1 << bit;
         if (!marchb_testbit(addr_size)) {
             failed |= 1 << bit; // fail flag
@@ -348,41 +357,45 @@ void show_speed_menu()
     gui_listbox(cur_menu, LIST_ACTION_NONE);
 }
 
-typedef enum {
-    UNTESTED,
-    TESTING,
-    PASSED,
-    FAILED
-} test_status_t;
 
 #define CELL_STAT_X 9
 #define CELL_STAT_Y 33
 
 // Used to update the RAM test GUI left pane
-void update_test_gui(uint16_t addr, test_status_t status)
+static inline void update_vis_dot(uint16_t cx, uint16_t cy, uint16_t col)
 {
-    uint16_t cx, cy, col;
-    cx = addr & 0x1f;
-    cy = (addr >> 5) & 0x1f; // 10 bits are used
-    switch (status) {
-        case UNTESTED:
-            col = COLOR_DKGRAY; // Untested
-            break;
-        case TESTING:
-            col = COLOR_RED;
-            break;
-        case PASSED:
-            col = COLOR_GREEN;
-            break;
-        case FAILED:
-            col = COLOR_RED;
-            break;
-    }
     st7789_fill(CELL_STAT_X + cx * 3, CELL_STAT_Y + cy * 3, 2, 2, col);
 }
 
 #define STATUS_ICON_X 155
 #define STATUS_ICON_Y 65
+
+struct repeating_timer drum_timer;
+
+// Play the drums
+bool drum_animation_cb(__unused struct repeating_timer *t)
+{
+    static uint8_t drum_st = 0;
+    drum_st++;
+    if (drum_st > 3) drum_st = 0;
+    st7789_fill(STATUS_ICON_X, STATUS_ICON_Y, 32, 32, COLOR_LTGRAY);
+    switch (drum_st) {
+        case 0:
+            draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon0);
+            break;
+        case 1:
+            draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon1);
+            break;
+        case 2:
+            draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon2);
+            break;
+        case 3:
+            draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon3);
+            break;
+    }
+    return true;
+}
+
 
 // Show the RAM test console GUI
 void show_test_gui()
@@ -394,18 +407,19 @@ void show_test_gui()
     fancy_rect(7, 31, 100, 100, B_SUNKEN_OUTER); // Usable size is 220x80.
     fancy_rect(8, 32, 98, 98, B_SUNKEN_INNER);
     st7789_fill(9, 33, 96, 96, COLOR_BLACK);
-//    for (cx = 0; cx < 32; cx++) {
-//        for (cy = 0; cy < 32; cy++) {
-//            st7789_fill(CELL_STAT_X + cx * 3, CELL_STAT_Y + cy * 3, 2, 2, COLOR_GREEN);
-//        }
-//    }
-    for (cx = 0; cx < 1024; cx++) {
-        update_test_gui(cx, UNTESTED);
+    for (cy = 0; cy < 32; cy++) {
+        for (cx = 0; cx < 32; cx++) {
+            update_vis_dot(cx, cy, COLOR_DKGRAY);
+        }
     }
+    stat_old_addr = 0;
+    stat_cur_bit = 0;
+    stat_cur_test = 0;
 
     // Current test indicator
     paint_status(120, 35, 110, "March B");
     draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon0);
+    add_repeating_timer_ms(-100, drum_animation_cb, NULL, &drum_timer);
 }
 
 // Begins the RAM test with the selected RAM chip
@@ -432,6 +446,65 @@ void stop_the_ram_test()
     power_off();
 }
 
+// Figure out where visualization dot goes and map it
+static inline void map_vis_dot(int addr, int ox, int oy, int bitsize, uint16_t col)
+{
+    int cx, cy;
+    if (bitsize == 4) {
+        cx = addr & 0xf;
+        cy = (addr >> 4) & 0xf;
+    } else {
+        cx = addr & 0x1f;
+        cy = (addr >> 5) & 0x1f;
+    }
+    update_vis_dot(cx + ox, cy + oy, col);
+}
+
+// Draw up visualization from current test state
+void do_visualization()
+{
+    const uint16_t cmap[] = {COLOR_DKBLUE, COLOR_DKGREEN, COLOR_DKMAGENTA, COLOR_DKYELLOW, COLOR_GREEN};
+    int bitsize = chip_list[main_menu.sel_line]->bits;
+    int new_addr = stat_cur_addr * 1024 / chip_list[main_menu.sel_line]->mem_size / bitsize;
+    int bit = stat_cur_bit;
+    uint16_t col = cmap[stat_cur_test];
+    int delta, i;
+    int ox, oy = 0;
+
+    if (bitsize == 4) {
+        switch (bit) {
+            case 1:
+                oy = 0;
+                ox = 16;
+                break;
+            case 2:
+                oy = 16;
+                ox = 0;
+                break;
+            case 3:
+                ox = oy = 16;
+                break;
+            default:
+                ox = oy = 0;
+        }
+    } else {
+        ox = oy = 0;
+    }
+
+    if (new_addr > stat_old_addr) {
+        delta = new_addr - stat_old_addr;
+        for (i = 0; i < delta; i++) {
+            map_vis_dot(stat_old_addr + i, ox, oy, bitsize, col);
+        }
+    } else {
+        delta = stat_old_addr - new_addr;
+        for (i = delta - 1; i >= 0; i--) {
+            map_vis_dot(stat_old_addr + i, ox, oy, bitsize, col);
+        }
+    }
+    stat_old_addr = new_addr;
+}
+
 // During a RAM test, updates the status window and checks for the end of the test
 void do_status()
 {
@@ -439,44 +512,17 @@ void do_status()
     char retstring[30];
     uint16_t v;
     static uint16_t v_prev = 0;
-    static uint16_t drum_anim = 0;
-    static uint8_t drum_st = 0;
 
     if (gui_state == DO_TEST) {
-        // TODO: Visualizations
-        v = cur_addr >> 6; // FIXME: depends on our address space
-        update_test_gui(v, TESTING);
-        update_test_gui(v_prev, PASSED);
-        v_prev = v;
+        do_visualization();
 
-        // Drum animation
-        drum_anim++;
-        if (drum_anim > 8191) {
-            drum_anim = 0;
-            drum_st++;
-            if (drum_st > 3) drum_st = 0;
-            st7789_fill(STATUS_ICON_X, STATUS_ICON_Y, 32, 32, COLOR_LTGRAY);
-            switch (drum_st) {
-                case 0:
-                    draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon0);
-                    break;
-                case 1:
-                    draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon1);
-                    break;
-                case 2:
-                    draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon2);
-                    break;
-                case 3:
-                    draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &drum_icon3);
-                    break;
-            }
-        }
-
-    // Check official status
+        // Check official status
         if (!queue_is_empty(&results_queue)) {
             stop_the_ram_test();
             // The RAM test completed, so let's handle that
-            sleep_ms(100);
+            sleep_ms(10);
+            // No more drums
+            cancel_repeating_timer(&drum_timer);
             queue_remove_blocking(&results_queue, &retval);
             // Show the completion status
             gui_state = TEST_RESULTS;
@@ -492,7 +538,7 @@ void do_status()
                                                            (retval >> 2) & 1,
                                                             (retval >> 1) & 1,
                                                             (retval & 1));
-                   paint_status(120, 105, 110, retstring);
+                    paint_status(120, 105, 110, retstring);
                 }
             }
         }
