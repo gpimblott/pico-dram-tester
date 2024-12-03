@@ -1,3 +1,7 @@
+// TODO:
+// finish up refresh test
+// add more random numbers to PR test
+// Add copyright headers
 #include <stdio.h>
 #include <stdint.h>
 #include "pico/stdlib.h"
@@ -259,6 +263,19 @@ uint32_t marchb_test(uint32_t addr_size, uint32_t bits)
     return (uint32_t)failed;
 }
 
+#define PSEUDO_VALUES 64
+#define ARTISANAL_NUMBER 42
+static uint64_t random_seeds[PSEUDO_VALUES];
+
+void psrand_init_seeds()
+{
+    int i;
+    psrand_seed(ARTISANAL_NUMBER);
+    for (i = 0; i < PSEUDO_VALUES; i++) {
+        random_seeds[i] = psrand_next();
+    }
+}
+
 uint32_t psrand_next_bits(uint32_t bits)
 {
     static int bitcount = 0;
@@ -276,8 +293,6 @@ uint32_t psrand_next_bits(uint32_t bits)
     return out;
 }
 
-#define PSEUDO_VALUES 8
-static const uint64_t artisanal_numbers[] = {4, 8, 15, 16, 23, 42, 78, 98};
 
 // Pseudorandom test
 uint32_t psrandom_test(uint32_t addr_size, uint32_t bits)
@@ -291,14 +306,14 @@ uint32_t psrandom_test(uint32_t addr_size, uint32_t bits)
     for (i = 0; i < PSEUDO_VALUES; i++) {
         stat_cur_subtest = i >> 2;
         stat_cur_bit = i & 3;
-        psrand_seed(artisanal_numbers[i]);
+        psrand_seed(random_seeds[i]);
         for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
             bitsout = psrand_next_bits(bits);
             ram_write(stat_cur_addr, bits);
         }
 
         // Reseed and then read the data back
-        psrand_seed(artisanal_numbers[i]);
+        psrand_seed(random_seeds[i]);
         for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
             bitsout = psrand_next_bits(bits);
             bitsin = ram_read(stat_cur_addr);
@@ -316,7 +331,7 @@ uint32_t refresh_subtest(uint32_t addr_size, uint32_t bits, uint32_t time_delay)
     uint32_t bitsout;
     uint32_t bitsin;
 
-    psrand_seed(artisanal_numbers[0]);
+    psrand_seed(random_seeds[0]);
     for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
         bitsout = psrand_next_bits(bits);
         ram_write(stat_cur_addr, bits);
@@ -324,7 +339,7 @@ uint32_t refresh_subtest(uint32_t addr_size, uint32_t bits, uint32_t time_delay)
 
     sleep_us(time_delay);
 
-    psrand_seed(artisanal_numbers[0]);
+    psrand_seed(random_seeds[0]);
     for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
         bitsout = psrand_next_bits(bits);
         bitsin = ram_read(stat_cur_addr);
@@ -338,7 +353,7 @@ uint32_t refresh_subtest(uint32_t addr_size, uint32_t bits, uint32_t time_delay)
 
 uint32_t refresh_test(uint32_t addr_size, uint32_t bits)
 {
-    return refresh_subtest(addr_size, bits, 500000);
+    return refresh_subtest(addr_size, bits, 5000);
 }
 
 
@@ -598,14 +613,15 @@ void do_status()
                 paint_status(120, 35, 110, "Passed!");
                 draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &check_icon);
             } else {
-                paint_status(120, 35, 110, "Failed");
                 draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &error_icon);
                 if (chip_list[main_menu.sel_line]->bits == 4) {
-                    sprintf(retstring, "Bitmask %d%d%d%d", (retval >> 3) & 1,
+                    sprintf(retstring, "Failed %d%d%d%d", (retval >> 3) & 1,
                                                            (retval >> 2) & 1,
                                                             (retval >> 1) & 1,
                                                             (retval & 1));
                     paint_status(120, 105, 110, retstring);
+                } else {
+                    paint_status(120, 105, 110, "Failed");
                 }
             }
         }
@@ -745,6 +761,7 @@ int main() {
     //gpio_set_dir(15, GPIO_OUT);
 
     //printf("Test.\n");
+    psrand_init_seeds();
 
     gpio_init(GPIO_LED);
     gpio_set_dir(GPIO_LED, GPIO_OUT);
