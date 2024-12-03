@@ -30,7 +30,6 @@
 .program ram41128
 begin:
     set pins, 0b1111   ; 158.4 raise RAS#. tRAS=151.8ns  ES39.  = 3.3*37=122.1ns
-skip_ras:
     pull block        ; 161.7 Wait for new data to arrive ES40
     out y, 1 [1]         ; 165.0 get first bit which tells us which row line to use ES41
     out x, 1 [2]         ; 168.3 get second bit which tells us if we are in write mode. ES42
@@ -72,13 +71,13 @@ skip_wr2:
 
 % c-sdk {
 // Original delay numbers are 27, 5, 3, 13, 9
-#define RAM41128_DELAYS 5
-#define RAM41128_DELAY_FIELDS 8
-static const uint8_t ram41128_delays[5][32] = {{0, 0,  20, 2,  2,  6,  5,  0},    // 100ns
-                                              {0, 0,  25, 2,  4,  7,  8,  0},    // 120ns
-                                              {0, 0,  25, 2,  6, 10, 12,  0},    // 150ns
-                                              {0, 11, 20, 7, 13, 21,  4,  9},    // 200ns
-                                              {0, 20, 20, 8, 19, 24,  9, 10} };    // 250ns
+#define RAM41128_DELAYS 4
+#define RAM41128_DELAY_FIELDS 7
+#define GPIO_LED 25
+static const uint8_t ram41128_delays[5][32] = {{0,  0, 27,  4,  8,  6,  8},    // 120ns
+                                               {0,  0, 27,  5, 11,  7, 12},    // 150ns
+                                               {0, 11, 23,  7, 14, 12, 17},    // 200ns
+                                               {0, 20, 23, 10, 21, 25,  9} };    // 250ns
 
 static inline void ram41128_program_init(PIO pio, uint sm, uint offset, uint pin) {
     uint count;
@@ -125,7 +124,7 @@ int ram41128_ram_read(int addr)
                         ((0 & 1) << 18));            // Data bit
     while (pio_sm_is_rx_fifo_empty(pio, sm)) {}      // Wait for data to arrive
     d = pio_sm_get(pio, sm);                         // Return the data
-    //gpio_put(GPIO_LED, d);
+    gpio_put(GPIO_LED, d);
     return d;
 }
 
@@ -163,11 +162,11 @@ static const mem_chip_t ram41128_chip = { .setup_pio = ram41128_setup_pio,
                                           .teardown_pio = ram41128_teardown_pio,
                                           .ram_read = ram41128_ram_read,
                                           .ram_write = ram41128_ram_write,
-                                          .mem_size = 131072,
+                                          .mem_size = 131072, // 131072
                                           .bits = 1,
                                           .speed_grades = RAM41128_DELAYS,
                                           .chip_name = "41128 (128Kx1)",
-                                          .speed_names = {"100ns", "120ns", "150ns", "200ns", "250ns"} };
+                                          .speed_names = {"120ns", "150ns", "200ns", "250ns"} };
 
 
 
