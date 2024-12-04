@@ -8857,16 +8857,6 @@
 		)
 		(uuid "fda28fac-f782-47bb-beb1-7af6d2a89f54")
 	)
-	(text "PINS"
-		(exclude_from_sim no)
-		(at 135.89 118.618 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "01d3f789-bea9-4ad0-a2b3-a87793fccbb7")
-	)
 	(text "DC"
 		(exclude_from_sim no)
 		(at 185.42 52.324 0)
@@ -8927,6 +8917,16 @@
 		)
 		(uuid "13b532e8-ef1b-4835-b95c-b03d11fef114")
 	)
+	(text "ADAFRUIT"
+		(exclude_from_sim no)
+		(at 152.654 27.94 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "140e4960-67b1-4df8-98ab-e64fc656e810")
+	)
 	(text "A1"
 		(exclude_from_sim no)
 		(at 199.39 143.764 0)
@@ -8937,16 +8937,6 @@
 		)
 		(uuid "1599142d-2db6-44a4-82f0-55d2fd73b2df")
 	)
-	(text "PINS"
-		(exclude_from_sim no)
-		(at 135.89 116.078 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "15ec89fc-298b-40d6-b777-58d07bf99688")
-	)
 	(text "Q"
 		(exclude_from_sim no)
 		(at 272.034 99.568 0)
@@ -8956,16 +8946,6 @@
 			)
 		)
 		(uuid "17019f99-8347-474e-9cba-4824a14b161d")
-	)
-	(text "PINS"
-		(exclude_from_sim no)
-		(at 135.89 105.918 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "19d205f9-f973-4634-bb55-524b7e7bb48e")
 	)
 	(text "GND"
 		(exclude_from_sim no)
@@ -9087,6 +9067,16 @@
 		)
 		(uuid "2f304966-2901-4cca-9bd8-63ace4e10950")
 	)
+	(text "License: CC BY-SA 4.0 Intl"
+		(exclude_from_sim no)
+		(at 191.516 176.53 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "302f97f7-2039-4e9a-bbd1-24ec05acaa25")
+	)
 	(text "A0"
 		(exclude_from_sim no)
 		(at 151.638 103.378 0)
@@ -9166,6 +9156,16 @@
 			)
 		)
 		(uuid "48a8a50c-f70d-4861-9a0c-199e01875730")
+	)
+	(text "(C) 2024 Tube Time"
+		(exclude_from_sim no)
+		(at 188.214 173.482 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "4f5342fe-fcff-4d03-9ed6-da42661e393b")
 	)
 	(text "A5"
 		(exclude_from_sim no)
@@ -9457,16 +9457,6 @@
 		)
 		(uuid "99305506-453e-409e-87d7-60e5e5fa6cdc")
 	)
-	(text "TODO:\nAdd fp for fake adafruit display"
-		(exclude_from_sim no)
-		(at 160.782 23.622 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "9c064e28-715c-492d-be68-f95880a5c2b8")
-	)
 	(text "SDA"
 		(exclude_from_sim no)
 		(at 185.42 47.244 0)
@@ -9497,36 +9487,6 @@
 		)
 		(uuid "a3750cb4-9779-4578-b374-8e3b8e99ebe5")
 	)
-	(text "PINS"
-		(exclude_from_sim no)
-		(at 135.89 103.378 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "a41a86cd-5c2c-48fe-a60b-456a3c567bab")
-	)
-	(text "PINS"
-		(exclude_from_sim no)
-		(at 135.89 110.998 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "a4ff05e1-bae4-47b5-92d9-bb32c35d4a6a")
-	)
-	(text "PINS"
-		(exclude_from_sim no)
-		(at 135.89 108.458 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "ac1433ec-e209-40c8-b3ab-9f3516f0fe56")
-	)
 	(text "A2"
 		(exclude_from_sim no)
 		(at 176.022 143.764 0)
@@ -9536,6 +9496,16 @@
 			)
 		)
 		(uuid "b2568bca-9757-45df-b256-e445ec59338d")
+	)
+	(text "Pico DRAM Tester"
+		(exclude_from_sim no)
+		(at 194.818 169.672 0)
+		(effects
+			(font
+				(size 2.54 2.54)
+			)
+		)
+		(uuid "b27f49f5-4b61-49ff-9b1c-a5a563b77f12")
 	)
 	(text "A3"
 		(exclude_from_sim no)
@@ -9556,16 +9526,6 @@
 			)
 		)
 		(uuid "b3a3d675-b17c-453b-8a77-f1f85725a3b8")
-	)
-	(text "PINS"
-		(exclude_from_sim no)
-		(at 135.89 113.538 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "b521fcad-1ff5-4ed1-8345-9417bb41b294")
 	)
 	(text "A0"
 		(exclude_from_sim no)
@@ -9706,16 +9666,6 @@
 			)
 		)
 		(uuid "d5740937-0b94-441b-a814-e247c0df8c18")
-	)
-	(text "PINS"
-		(exclude_from_sim no)
-		(at 135.89 121.158 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "d615b29b-1ba7-44ba-badb-3e206eef066c")
 	)
 	(text "A5"
 		(exclude_from_sim no)
@@ -10928,7 +10878,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 123.19 90)
 			(effects
 				(font
@@ -11044,6 +10994,15 @@
 			)
 		)
 		(property "Description" "test point"
+			(at 31.75 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "534-5006"
 			(at 31.75 31.75 0)
 			(effects
 				(font
@@ -11349,7 +11308,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 125.73 90)
 			(effects
 				(font
@@ -11568,7 +11527,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 144.78 90)
 			(effects
 				(font
@@ -11904,7 +11863,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.904 104.14 90)
 			(effects
 				(font
@@ -12121,7 +12080,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 105.41 90)
 			(effects
 				(font
@@ -12982,7 +12941,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 138.43 90)
 			(effects
 				(font
@@ -13068,7 +13027,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 102.87 90)
 			(effects
 				(font
@@ -13837,7 +13796,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 107.95 90)
 			(effects
 				(font
@@ -15369,6 +15328,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "534-5005"
+			(at 44.45 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "f5342aa9-95c1-4d77-9481-400635cb1d9d")
 		)
@@ -16161,7 +16129,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 124.46 90)
 			(effects
 				(font
@@ -16869,6 +16837,15 @@
 			)
 		)
 		(property "Description" "test point"
+			(at 87.63 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "534-5007"
 			(at 87.63 57.15 0)
 			(effects
 				(font
@@ -17712,6 +17689,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "534-5009"
+			(at 86.36 30.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "aa0a42cc-6b6f-4b7b-9b90-e3b3f24ebae1")
 		)
@@ -17943,7 +17929,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 114.3 90)
 			(effects
 				(font
@@ -18132,6 +18118,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "534-5006"
+			(at 16.51 91.44 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "9b95927b-a0c5-41aa-9b19-7928c23a10a0")
 		)
@@ -18161,7 +18156,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 134.62 90)
 			(effects
 				(font
@@ -18378,7 +18373,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 135.89 90)
 			(effects
 				(font
@@ -18494,6 +18489,15 @@
 			)
 		)
 		(property "Description" "test point"
+			(at 26.67 91.44 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "534-5005"
 			(at 26.67 91.44 0)
 			(effects
 				(font
@@ -18835,7 +18839,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 115.57 90)
 			(effects
 				(font
@@ -18921,7 +18925,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 113.03 90)
 			(effects
 				(font
@@ -19074,7 +19078,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 133.35 90)
 			(effects
 				(font
@@ -19160,7 +19164,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 128.27 90)
 			(effects
 				(font
@@ -19314,7 +19318,7 @@
 				)
 			)
 		)
-		(property "Value" "100"
+		(property "Value" "33"
 			(at 120.65 118.11 90)
 			(effects
 				(font
