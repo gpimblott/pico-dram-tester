@@ -1,7 +1,9 @@
+// Main entry point
+
 // TODO:
-// finish up refresh test
-// add more random numbers to PR test
-// Add copyright headers
+// Make the refresh test fancier
+// Bug fix the 41128
+
 #include <stdio.h>
 #include <stdint.h>
 #include "pico/stdlib.h"

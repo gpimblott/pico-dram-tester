@@ -1,3 +1,5 @@
+// Simple driver for ST7789 LCD controller
+
 #include <stdio.h>
 #include <stdint.h>
 #include "pico/stdlib.h"
@@ -6,19 +8,11 @@
 #include "st7789.h"
 
 #include "rtc_image.h"
-//#include "chip_icon.h"
-//#include "prop_font.h"
-//#include "sserif13.h"
-//#include "sserif16.h"
-//#include "sserif20.h"
-//#include "widgets16.h"
 
 #define PIN_SPI_CS 1
 #define PIN_SPI_SCK 2
 #define PIN_SPI_DO 3
 #define PIN_SPI_DC 0
-
-//#define PIN_7789_RST 6 // FIXME no more reset
 
 #define RESET_DELAY 140
 
@@ -126,12 +120,7 @@ static void st7789_gpio_init()
     gpio_set_dir(PIN_SPI_DC, GPIO_OUT);
     gpio_put(PIN_SPI_DC, 0);
 
-//    gpio_init(PIN_7789_RST);
-//    gpio_set_dir(PIN_7789_RST, GPIO_OUT);
-//    gpio_put(PIN_7789_RST, 0);
     sleep_ms(RESET_DELAY);
-//    gpio_put(PIN_7789_RST, 1);
-
 }
 
 // Set the window size for data writes

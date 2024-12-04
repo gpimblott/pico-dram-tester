@@ -1,3 +1,5 @@
+// Routines for displaying a simple GUI
+
 #include <stdint.h>
 #include <stdbool.h>
 #include "st7789.h"
@@ -5,7 +7,6 @@
 
 #include "sserif20.h"
 #include "widgets16.h"
-// Routines for displaying a simple GUI
 
 
 // Colors for fancy rectangles

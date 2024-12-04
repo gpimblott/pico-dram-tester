@@ -1,3 +1,5 @@
+// Patches PIO program delay fields
+
 #include <string.h>
 #include "hardware/pio.h"
 
