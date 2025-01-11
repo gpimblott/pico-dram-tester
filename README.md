@@ -88,7 +88,7 @@ Before starting, connect the tester to a power source:
 test. Often the speed grade is marked on the chip as a suffix. For example, -15
 typically means 150ns. If you're not sure, pick the slowest speed.
 5. If you are using an external bench power supply to supply -5V and +12V, turn it on now. If you soldered in the on-board voltage converter modules, you don't need to do anything. Push the top of the selection knob to continue.
-6. The test runs. You will see a red "X" if the test passes or a green checkmark if the test passes.
+6. The test runs. You will see a red "X" if the test fails or a green checkmark if the test passes.
 
 Note: The visualization pane on the left is just for entertainment and doesn't
 really represent bad bits.
