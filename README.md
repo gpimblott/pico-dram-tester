@@ -122,6 +122,15 @@ all failure modes. The Pico DRAM Tester uses more modern testing algorithms:
 
 * The 41128 test is not yet reliable.
 
+## Troubleshooting
+
+Check your solder connections. Does the Pico 2 board show up in bootloader mode when you plug it into a computer?
+
+The Pico DRAM Tester uses an overclocked Pico 2 configuration.
+Some Pico 2 boards may not work well at 300MHz, crashing or not drawing the GUI on the screen correctly.
+You may be able to get it working by editing pmemtest.c, find the line `vreg_set_voltage(VREG_VOLTAGE_1_15);` and change the voltage setting to `VREG_VOLTAGE_1_20`.
+
+
 ## License
 
 This work is licensed under a Creative Commons Attribution-ShareAlike 4.0

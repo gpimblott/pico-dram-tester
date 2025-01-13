@@ -10,6 +10,7 @@
 #include "pico/multicore.h"
 #include "pico/util/queue.h"
 #include "hardware/pio.h"
+#include "hardware/vreg.h"
 #include "pio_patcher.h"
 #include "mem_chip.h"
 #include "xoroshiro64starstar.h"
@@ -755,6 +756,9 @@ int main() {
     uint8_t db = 0;
     uint din = 0;
     int i, retval;
+
+    // Increase core voltage slightly (default is 1.1V) to better handle overclock
+    vreg_set_voltage(VREG_VOLTAGE_1_15);
 
     // PLL->prim = 0x51000.
 
