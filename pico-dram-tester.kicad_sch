@@ -10914,6 +10914,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "652-4608X-2LF-33"
+			(at 120.65 127 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "3"
 			(uuid "67e2df90-3c53-4154-b229-dc99c0c36a62")
 		)
@@ -11344,6 +11353,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "652-4608X-2LF-33"
+			(at 120.65 129.54 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "3"
 			(uuid "7a11ea1a-81db-4e76-8723-840ac91f10ad")
 		)
@@ -11452,7 +11470,6 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "13a9cdfd-4c6c-4ea5-b103-c992149f78b0")
 		(property "Reference" "#PWR053"
 			(at 24.13 57.15 0)
@@ -11464,7 +11481,7 @@
 			)
 		)
 		(property "Value" "VCC"
-			(at 24.13 48.26 0)
+			(at 20.574 52.07 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11554,6 +11571,15 @@
 			)
 		)
 		(property "Description" "Resistor"
+			(at 120.65 144.78 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "594-MBB02070C3309FCT"
 			(at 120.65 144.78 0)
 			(effects
 				(font
@@ -11765,6 +11791,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "594-MBB02070C4701FCT"
+			(at 134.62 167.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "719b8cee-06dc-4a3a-a2a2-22199e568dbe")
 		)
@@ -11890,6 +11925,15 @@
 			)
 		)
 		(property "Description" "4 resistor network, parallel topology, SIP package, split"
+			(at 120.65 104.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "652-4608X-2LF-33"
 			(at 120.65 104.14 0)
 			(effects
 				(font
@@ -12108,6 +12152,15 @@
 			)
 		)
 		(property "Description" "4 resistor network, parallel topology, SIP package, split"
+			(at 120.65 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "652-4608X-2LF-33"
 			(at 120.65 109.22 0)
 			(effects
 				(font
@@ -12397,6 +12450,15 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor, small symbol"
+			(at 187.96 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "80-C322C104M5U"
 			(at 187.96 121.92 0)
 			(effects
 				(font
@@ -12823,6 +12885,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "594-MBB02070C4701FCT"
+			(at 158.75 167.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "1c067cd2-540c-4626-a43d-6336e8b93e02")
 		)
@@ -12977,6 +13048,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "652-4608X-2LF-33"
+			(at 120.65 142.24 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "3"
 			(uuid "7a11ea1a-81db-4e76-8723-840ac91f10af")
 		)
@@ -13055,6 +13135,15 @@
 			)
 		)
 		(property "Description" "4 resistor network, parallel topology, SIP package, split"
+			(at 120.65 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "652-4608X-2LF-33"
 			(at 120.65 106.68 0)
 			(effects
 				(font
@@ -13832,6 +13921,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "652-4608X-2LF-33"
+			(at 120.65 111.76 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "3"
 			(uuid "7a11ea1a-81db-4e76-8723-840ac91f10b1")
 		)
@@ -14111,6 +14209,15 @@
 		)
 		(property "Description" ""
 			(at 106.68 88.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "358-SC1631"
+			(at 57.15 88.9 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14523,6 +14630,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "80-C322C104M5U"
+			(at 208.28 74.93 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "9b3a0358-95bc-491f-bbe6-dd98a327cd00")
 		)
@@ -14769,6 +14885,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "594-MBB02070C4701FCT"
+			(at 29.21 64.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "7034c02d-66b3-4fc7-814e-7cc2e32477ac")
 		)
@@ -14795,15 +14920,15 @@
 		(dnp no)
 		(uuid "8add4e17-2c4b-41c2-ab4a-b0ce6ab6aec7")
 		(property "Reference" "Q1"
-			(at 38.1 48.26 90)
+			(at 32.766 45.72 90)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 			)
 		)
-		(property "Value" "XP9561GI"
-			(at 38.1 50.8 90)
+		(property "Value" "SUP53P06-20-E3 or equiv"
+			(at 32.766 48.26 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14840,7 +14965,7 @@
 				(hide yes)
 			)
 		)
-		(property "Mouser" "603-XP9561GI"
+		(property "Mouser" "781-SUP53P06-20-E3"
 			(at 38.1 57.15 0)
 			(effects
 				(font
@@ -14989,6 +15114,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "80-C322C104M5U"
+			(at 196.85 74.93 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "e7798096-c175-4893-91bf-e2c58d57fad2")
 		)
@@ -15051,6 +15185,15 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor, small symbol"
+			(at 175.26 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "80-C322C104M5U"
 			(at 175.26 76.2 0)
 			(effects
 				(font
@@ -15404,6 +15547,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "80-C322C104M5U"
+			(at 261.62 78.74 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "d908ae71-e6d1-462e-bbba-738f603dc109")
 		)
@@ -15466,6 +15618,15 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor, small symbol"
+			(at 165.1 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "80-C322C104M5U"
 			(at 165.1 76.2 0)
 			(effects
 				(font
@@ -15744,6 +15905,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "80-C322C104M5U"
+			(at 144.78 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "8ebd3f1f-1276-4132-8326-addf8de974bb")
 		)
@@ -15806,6 +15976,15 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor, small symbol"
+			(at 153.67 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "80-C322C104M5U"
 			(at 153.67 76.2 0)
 			(effects
 				(font
@@ -16016,6 +16195,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "667-ECA-1VM100"
+			(at 26.67 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "5f29f191-996e-4398-b6f0-a073c9a6b710")
 		)
@@ -16164,6 +16352,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "652-4608X-2LF-33"
+			(at 120.65 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "3"
 			(uuid "7a11ea1a-81db-4e76-8723-840ac91f10b2")
 		)
@@ -16245,6 +16442,15 @@
 			)
 		)
 		(property "Description" "Resistor"
+			(at 125.73 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "594-MBB02070C4701FCT"
 			(at 125.73 46.99 0)
 			(effects
 				(font
@@ -16708,6 +16914,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "594-MBB02070C6800FCT"
+			(at 81.28 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "08277660-888a-4466-ad1f-55b1140a1172")
 		)
@@ -16913,6 +17128,15 @@
 			)
 		)
 		(property "Description" "Resistor"
+			(at 137.16 167.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "594-MBB02070C4701FCT"
 			(at 137.16 167.64 0)
 			(effects
 				(font
@@ -17897,6 +18121,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "80-C322C104M5U"
+			(at 218.44 74.93 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "9c6c743f-2e97-440e-9b6a-d1c30cd62f55")
 		)
@@ -17956,6 +18189,15 @@
 			)
 		)
 		(property "Description" "4 resistor network, parallel topology, SIP package, split"
+			(at 120.65 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "652-4608X-2LF-33"
 			(at 120.65 114.3 0)
 			(effects
 				(font
@@ -18191,6 +18433,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "652-4608X-2LF-33"
+			(at 120.65 134.62 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "3"
 			(uuid "7a11ea1a-81db-4e76-8723-840ac91f10b4")
 		)
@@ -18401,6 +18652,15 @@
 			)
 		)
 		(property "Description" "4 resistor network, parallel topology, SIP package, split"
+			(at 120.65 139.7 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "652-4608X-2LF-33"
 			(at 120.65 139.7 0)
 			(effects
 				(font
@@ -18737,6 +18997,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "594-MBB02070C4701FCT"
+			(at 102.87 170.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "434d9c3a-cf02-4b39-b0f0-f53c0ac404f1")
 		)
@@ -18807,6 +19076,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "594-MBB02070C6800FCT"
+			(at 81.28 40.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "5ef10fd1-7735-4276-bcd0-16c4e4862c87")
 		)
@@ -18867,6 +19145,15 @@
 			)
 		)
 		(property "Description" "4 resistor network, parallel topology, SIP package, split"
+			(at 120.65 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "652-4608X-2LF-33"
 			(at 120.65 119.38 0)
 			(effects
 				(font
@@ -18953,6 +19240,15 @@
 			)
 		)
 		(property "Description" "4 resistor network, parallel topology, SIP package, split"
+			(at 120.65 116.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "652-4608X-2LF-33"
 			(at 120.65 116.84 0)
 			(effects
 				(font
@@ -19114,6 +19410,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "652-4608X-2LF-33"
+			(at 120.65 137.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "3"
 			(uuid "1568e99b-53db-42a9-8e1f-e864a0c2e1ae")
 		)
@@ -19192,6 +19497,15 @@
 			)
 		)
 		(property "Description" "4 resistor network, parallel topology, SIP package, split"
+			(at 120.65 132.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "652-4608X-2LF-33"
 			(at 120.65 132.08 0)
 			(effects
 				(font
@@ -19286,6 +19600,15 @@
 				(hide yes)
 			)
 		)
+		(property "Mouser" "594-MBB02070C1000FCT"
+			(at 49.53 74.93 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "95708ea4-f489-463d-88e2-d8984d83bffe")
 		)
@@ -19346,6 +19669,15 @@
 			)
 		)
 		(property "Description" "4 resistor network, parallel topology, SIP package, split"
+			(at 120.65 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Mouser" "652-4608X-2LF-33"
 			(at 120.65 121.92 0)
 			(effects
 				(font
