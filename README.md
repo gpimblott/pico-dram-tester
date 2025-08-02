@@ -7,7 +7,7 @@ chips.
 **This is an early beta release. The software is not completed. Feel free to
 build a tester and try it out, and submit bug reports.**
 
-![Photo of the board](pico-dram-tester.jpg)
+![Photo of the board](images/pico-dram-tester-rev2b.jpg)
 
 Benefits
 
