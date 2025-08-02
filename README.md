@@ -35,6 +35,10 @@ Out of scope
 
 ## Construction
 
+Revision 2.2 adds a DC Barrel Jack option.  
+It also adds solder jumper pads to allow use of the original Panasonic Encoder
+or the common Generic Encoders.
+
 [Fab package](fab/pico-dram-tester-rev2.zip)
 
 [Schematic](pico-dram-tester.pdf)
