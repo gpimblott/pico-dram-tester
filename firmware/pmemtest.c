@@ -312,7 +312,7 @@ uint32_t psrandom_test(uint32_t addr_size, uint32_t bits)
         psrand_seed(random_seeds[i]);
         for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
             bitsout = psrand_next_bits(bits);
-            ram_write(stat_cur_addr, bits);
+            ram_write(stat_cur_addr, bitsout);
         }
 
         // Reseed and then read the data back
@@ -320,7 +320,7 @@ uint32_t psrandom_test(uint32_t addr_size, uint32_t bits)
         for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
             bitsout = psrand_next_bits(bits);
             bitsin = ram_read(stat_cur_addr);
-            if (bits != bitsin) {
+            if (bitsout != bitsin) {
                 return 1;
             }
         }
