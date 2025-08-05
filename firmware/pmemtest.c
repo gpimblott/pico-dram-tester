@@ -676,8 +676,6 @@ void button_back()
             show_speed_menu();
             break;
         case DO_TEST:
-            gui_state = SPEED_MENU;
-            show_speed_menu();
             break;
         case TEST_RESULTS:
             gui_state = MAIN_MENU;
