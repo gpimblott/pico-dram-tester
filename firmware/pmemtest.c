@@ -67,13 +67,17 @@ char *main_menu_items[MAIN_MENU_ITEMS];
 gui_listbox_t main_menu = {7, 40, 220, MAIN_MENU_ITEMS, 4, 0, 0, main_menu_items};
 
 #define NUM_CHIPS 8
-const mem_chip_t *chip_list[] = {&ram4116_chip, &ram4132_chip, &ram4164_chip, &ram41128_chip,
-                                 &ram41256_chip, &ram4416_chip, &ram4464_chip, &ram44256_chip};
+const mem_chip_t *chip_list[] = {&ram4116_chip, &ram4132_stk_chip, &ram4164_half_chip,
+                                 &ram4164_chip, &ram41128_chip, &ram41256_chip,
+                                 &ram4416_chip, &ram4464_chip, &ram44256_chip};
 
+gui_listbox_t variants_menu = {7, 40, 220, 0, 4, 0, 0, 0};
 gui_listbox_t speed_menu = {7, 40, 220, 0, 4, 0, 0, 0};
+
 
 typedef enum {
     MAIN_MENU,
+    VARIANT_MENU,
     SPEED_MENU,
     DO_SOCKET,
     DO_TEST,
@@ -425,6 +429,16 @@ void show_main_menu()
     gui_listbox(cur_menu, LIST_ACTION_NONE);
 }
 
+void show_variant_menu()
+{
+    uint chip = main_menu.sel_line;
+    cur_menu = &variants_menu;
+    paint_dialog("Select Variant");
+    variants_menu.items = (char **)chip_list[chip]->variants->variant_names;
+    variants_menu.tot_lines = chip_list[chip]->variants->num_variants;
+    gui_listbox(cur_menu, LIST_ACTION_NONE);
+}
+
 // With the selected chip, populate the speed grade menu and show it
 void show_speed_menu()
 {
@@ -507,7 +521,7 @@ void start_the_ram_test()
     power_on();
 
     // Get the PIO going
-    chip_list[main_menu.sel_line]->setup_pio(speed_menu.sel_line);
+    chip_list[main_menu.sel_line]->setup_pio(speed_menu.sel_line, variants_menu.sel_line);
 
     // Dispatch the second core
     // (The memory size is from our memory description data structure)
@@ -637,6 +651,17 @@ void button_action()
     // Do something based on the current menu
     switch (gui_state) {
         case MAIN_MENU:
+            // Check for variant
+            if (chip_list[main_menu.sel_line]->variants == NULL) {
+                gui_state = SPEED_MENU;
+                show_speed_menu();
+            } else {
+                gui_state = VARIANT_MENU;
+                show_variant_menu();
+            }
+            break;
+        case VARIANT_MENU:
+            // Set up variant
             gui_state = SPEED_MENU;
             show_speed_menu();
             break;
@@ -653,7 +678,10 @@ void button_action()
         case DO_TEST:
             break;
         case TEST_RESULTS:
-            // TODO: Maybe make it easy to run the test again?
+            // Quick retest to save time
+            gui_state = DO_TEST;
+            show_test_gui();
+            start_the_ram_test();
             break;
         default:
             gui_state = MAIN_MENU;
@@ -667,9 +695,19 @@ void button_back()
     switch (gui_state) {
         case MAIN_MENU:
             break;
-        case SPEED_MENU:
+        case VARIANT_MENU:
             gui_state = MAIN_MENU;
             show_main_menu();
+            break;
+        case SPEED_MENU:
+            // Check if our selection has a variant
+            if (chip_list[main_menu.sel_line]->variants == NULL) {
+                gui_state = MAIN_MENU;
+                show_main_menu();
+            } else {
+                gui_state = VARIANT_MENU;
+                show_variant_menu();
+            }
             break;
         case DO_SOCKET:
             gui_state = SPEED_MENU;
@@ -678,8 +716,8 @@ void button_back()
         case DO_TEST:
             break;
         case TEST_RESULTS:
-            gui_state = MAIN_MENU;
-            show_main_menu();
+            gui_state = SPEED_MENU;
+            show_speed_menu();
             break;
         default:
             gui_state = MAIN_MENU;
@@ -697,14 +735,14 @@ void do_buttons()
 
 void wheel_increment()
 {
-    if (gui_state == MAIN_MENU || gui_state == SPEED_MENU) {
+    if (gui_state == MAIN_MENU || gui_state == SPEED_MENU || gui_state == VARIANT_MENU) {
         gui_listbox(cur_menu, LIST_ACTION_DOWN);
     }
 }
 
 void wheel_decrement()
 {
-    if (gui_state == MAIN_MENU || gui_state == SPEED_MENU) {
+    if (gui_state == MAIN_MENU || gui_state == SPEED_MENU || gui_state == VARIANT_MENU) {
         gui_listbox(cur_menu, LIST_ACTION_UP);
     }
 }

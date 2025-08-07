@@ -239,17 +239,17 @@ void ram44256_64_16_setup_pio(uint speed_grade, int ic)
     pio_sm_set_enabled(pio, sm, true);
 }
 
-void ram44256_setup_pio(uint speed_grade)
+void ram44256_setup_pio(uint speed_grade, uint variant)
 {
     ram44256_64_16_setup_pio(speed_grade, 2);
 }
 
-void ram4464_setup_pio(uint speed_grade)
+void ram4464_setup_pio(uint speed_grade, uint variant)
 {
     ram44256_64_16_setup_pio(speed_grade, 1);
 }
 
-void ram4416_setup_pio(uint speed_grade)
+void ram4416_setup_pio(uint speed_grade, uint variant)
 {
    ram44256_64_16_setup_pio(speed_grade, 0);
 }
@@ -267,6 +267,7 @@ static const mem_chip_t ram44256_chip = { .setup_pio = ram44256_setup_pio,
                                           .ram_write = ram44256_ram_write,
                                           .mem_size = 262144,
                                           .bits = 4,
+                                          .variants = NULL,
                                           .speed_grades = RAM44256_DELAYS,
                                           .chip_name = "44256 (256Kx4)",
                                           .speed_names = {"60ns", "70ns", "80ns", "100ns", "120ns"} };
@@ -277,6 +278,7 @@ static const mem_chip_t ram4464_chip  = { .setup_pio = ram4464_setup_pio,
                                           .ram_write = ram4464_ram_write,
                                           .mem_size = 65536,
                                           .bits = 4,
+                                          .variants = NULL,
                                           .speed_grades = RAM4464_DELAYS,
                                           .chip_name = "4464 (64Kx4)",
                                           .speed_names = {"60ns", "70ns", "80ns", "100ns", "120ns", "150ns"} };
@@ -287,6 +289,7 @@ static const mem_chip_t ram4416_chip  = { .setup_pio = ram4416_setup_pio,
                                           .ram_write = ram4416_ram_write,
                                           .mem_size = 16384,
                                           .bits = 4,
+                                          .variants = NULL,
                                           .speed_grades = RAM4416_DELAYS,
                                           .chip_name = "4416 (16Kx4)",
                                           .speed_names = {"120ns", "150ns", "200ns"} };

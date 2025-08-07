@@ -140,7 +140,7 @@ void ram41128_ram_write(int addr, int data)
 }
 
 // Routines to set up and tear down the PIO program (and the RAM test)
-void ram41128_setup_pio(uint speed_grade)
+void ram41128_setup_pio(uint speed_grade, uint variant)
 {
     uint pin = 5;
     set_current_pio_program(&ram41128_program);
@@ -164,6 +164,7 @@ static const mem_chip_t ram41128_chip = { .setup_pio = ram41128_setup_pio,
                                           .ram_write = ram41128_ram_write,
                                           .mem_size = 131072, // 131072
                                           .bits = 1,
+                                          .variants = NULL,
                                           .speed_grades = RAM41128_DELAYS,
                                           .chip_name = "41128 (128Kx1)",
                                           .speed_names = {"120ns", "150ns", "200ns", "250ns"} };
