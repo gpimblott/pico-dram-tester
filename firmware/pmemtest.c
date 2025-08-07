@@ -240,7 +240,6 @@ static inline bool march_element(int addr_size, bool descending, int algorithm)
 uint32_t marchb_testbit(uint32_t addr_size)
 {
     bool ret;
-    me_w0(0); // ES Hack
     ret = march_element(addr_size, false, 0);
     if (!ret) return false;
     ret = march_element(addr_size, false, 1);
@@ -373,6 +372,9 @@ uint32_t all_ram_tests(uint32_t addr_size, uint32_t bits)
 {
     int failed;
     int test = 0;
+// Initialize RAM by performing n RAS cycles
+    march_element(addr_size, false, 0);
+// Now run actual tests
     queue_add_blocking(&stat_cur_test, &test);
     failed = marchb_test(addr_size, bits);
     if (failed) return failed;
