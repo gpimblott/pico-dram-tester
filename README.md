@@ -19,6 +19,7 @@ Benefits
 
 Supported Devices
 
+* 4108 (8K x 1 that are 4116s with only half test good: MK4108, TMS4108, etc)
 * 4116 (16K x 1)
 * 4132 (32K x 1, piggyback)
 * 4132 (32K x 1 that are 4164s with only half tested good: TMS4532, M3732)

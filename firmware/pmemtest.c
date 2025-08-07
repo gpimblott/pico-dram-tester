@@ -67,9 +67,10 @@ char *main_menu_items[MAIN_MENU_ITEMS];
 gui_listbox_t main_menu = {7, 40, 220, MAIN_MENU_ITEMS, 4, 0, 0, main_menu_items};
 
 #define NUM_CHIPS 8
-const mem_chip_t *chip_list[] = {&ram4116_chip, &ram4132_stk_chip, &ram4164_half_chip,
-                                 &ram4164_chip, &ram41128_chip, &ram41256_chip,
-                                 &ram4416_chip, &ram4464_chip, &ram44256_chip};
+const mem_chip_t *chip_list[] = {&ram4116_half_chip, &ram4116_chip, &ram4132_stk_chip,
+                                 &ram4164_half_chip, &ram4164_chip, &ram41128_chip,
+                                 &ram41256_chip, &ram4416_chip, &ram4464_chip,
+                                 &ram44256_chip};
 
 gui_listbox_t variants_menu = {7, 40, 220, 0, 4, 0, 0, 0};
 gui_listbox_t speed_menu = {7, 40, 220, 0, 4, 0, 0, 0};
