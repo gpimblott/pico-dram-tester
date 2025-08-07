@@ -21,6 +21,7 @@ Supported Devices
 
 * 4116 (16K x 1)
 * 4132 (32K x 1, piggyback)
+* 4132 (32K x 1 that are 4164s with only half tested good: TMS4532, M3732)
 * 4164 (64K x 1)
 * 41128 (128K x 1, piggyback)
 * 41256 (256K x 1)
@@ -89,6 +90,7 @@ test. Often the speed grade is marked on the chip as a suffix. For example, -15
 typically means 150ns. If you're not sure, pick the slowest speed.
 5. If you are using an external bench power supply to supply -5V and +12V, turn it on now. If you soldered in the on-board voltage converter modules, you don't need to do anything. Push the top of the selection knob to continue.
 6. The test runs. You will see a red "X" if the test fails or a green checkmark if the test passes.
+7. You can rerun the test immediately by pushing down on the top of the selection knob. Or go back to the menu by pushing the button to the left.
 
 Note: The visualization pane on the left is just for entertainment and doesn't
 really represent bad bits.
