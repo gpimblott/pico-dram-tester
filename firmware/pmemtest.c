@@ -66,11 +66,11 @@ gui_listbox_t *cur_menu;
 char *main_menu_items[MAIN_MENU_ITEMS];
 gui_listbox_t main_menu = {7, 40, 220, MAIN_MENU_ITEMS, 4, 0, 0, main_menu_items};
 
-#define NUM_CHIPS 11
+#define NUM_CHIPS 12
 const mem_chip_t *chip_list[] = {&ram4027_chip, &ram4116_half_chip, &ram4116_chip,
                                  &ram4132_stk_chip, &ram4164_half_chip, &ram4164_chip,
-                                 &ram41128_chip, &ram41256_chip, &ram4416_chip,
-                                 &ram4464_chip, &ram44256_chip};
+                                 &ram41128_chip, &ram41256_chip, &ram4416_half_chip,
+                                 &ram4416_chip, &ram4464_chip, &ram44256_chip};
 
 gui_listbox_t variants_menu = {7, 40, 220, 0, 4, 0, 0, 0};
 gui_listbox_t speed_menu = {7, 40, 220, 0, 4, 0, 0, 0};
@@ -394,32 +394,33 @@ typedef struct {
     uint32_t hcount;
 } pin_debounce_t;
 
-#define DEBOUNCE_COUNT 1000
+#define ENC_DEBOUNCE_COUNT 1000
+#define BUTTON_DEBOUNCE_COUNT 50000
 
 // Debounces a pin
 uint8_t do_debounce(pin_debounce_t *d)
 {
     if (gpio_get(d->pin)) {
         d->hcount++;
-        if (d->hcount > DEBOUNCE_COUNT) d->hcount = DEBOUNCE_COUNT;
+        if (d->hcount > ENC_DEBOUNCE_COUNT) d->hcount = ENC_DEBOUNCE_COUNT;
     } else {
         d->hcount = 0;
     }
-    return (d->hcount >= DEBOUNCE_COUNT) ? 1 : 0;
+    return (d->hcount >= ENC_DEBOUNCE_COUNT) ? 1 : 0;
 }
 
 // Returns true only *once* when a button is pushed. No key repeat.
 bool is_button_pushed(pin_debounce_t *pin_b)
 {
     if (!gpio_get(pin_b->pin)) {
-        if (pin_b->hcount < DEBOUNCE_COUNT) {
-            pin_b->hcount++;
-            if (pin_b->hcount == DEBOUNCE_COUNT) {
-                return true;
-            }
+        if (pin_b->hcount == 0) {
+            pin_b->hcount = BUTTON_DEBOUNCE_COUNT;
+            return true;
         }
     } else {
-        pin_b->hcount = 0;
+        if (pin_b->hcount > 0) {
+            pin_b->hcount--;
+        }
     }
     return false;
 }

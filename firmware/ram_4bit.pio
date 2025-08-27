@@ -164,6 +164,7 @@ int ram4464_ram_read(int addr)
 int ram4416_ram_read(int addr)
 {
     uint d;
+    // CCCCCCRRRRRRRR
     pio_sm_put(pio, sm, 0 |                      // Fast page mode flag
                         (0 << 1) |               // Write flag
                         (1 << 6) |               // Initial OE is high
@@ -174,6 +175,36 @@ int ram4416_ram_read(int addr)
     while (pio_sm_is_rx_fifo_empty(pio, sm)) {}  // Wait for data to arrive
     d = pio_sm_get(pio, sm);                 // Return the data
     return d;
+}
+
+// A7 low (only for row address)
+int ram4416_half0_read(int addr)
+{
+    // CCCCCCRRRRRRR
+    pio_sm_put(pio, sm, 0 |                      // Fast page mode flag
+                        (0 << 1) |               // Write flag
+                        (1 << 6) |               // Initial OE is high
+                        ((addr & 0x07f) << 7) |  // Row address
+                        (0 << 20) |              // Final OE is low (for read)
+                        ((addr >> 7) << 22));    // Column address. Note that it starts at A1, not A0.
+
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {}  // Wait for data to arrive
+    return pio_sm_get(pio, sm);                 // Return the data
+}
+
+int ram4416_half1_read(int addr)
+{
+    // CCCCCCRRRRRRR
+    pio_sm_put(pio, sm, 0 |                      // Fast page mode flag
+                        (0 << 1) |               // Write flag
+                        (1 << 6) |               // Initial OE is high
+                        ((addr & 0x07f | 0x80) << 7) | // Row address
+                        (0 << 20) |              // Final OE is low (for read)
+                        ((addr >> 7) << 22));    // Column address. Note that it starts at A1, not A0.
+
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {}  // Wait for data to arrive
+    return pio_sm_get(pio, sm);                 // Return the data
+
 }
 
 
@@ -220,6 +251,33 @@ void ram4416_ram_write(int addr, int data)
     pio_sm_get(pio, sm);                        // Discard the dummy data bit
 }
 
+void ram4416_half0_write(int addr, int data)
+{
+    pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
+                        (1 << 1) |              // Write flag
+                        (1 << 6) |              // OE is high
+                        ((addr & 0x7f) << 7) | // Row address
+                        ((data & 0xf) << 16) |  // Data nibble
+                        (1 << 20) |             // Final OE is still high (write mode)
+                        ((addr >> 7) << 22));   // Column address. Note it starts at A1 not A0.
+
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
+    pio_sm_get(pio, sm);                        // Discard the dummy data bit
+}
+
+void ram4416_half1_write(int addr, int data)
+{
+    pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
+                        (1 << 1) |              // Write flag
+                        (1 << 6) |              // OE is high
+                        ((addr & 0x7f | 0x80) << 7) | // Row address
+                        ((data & 0xf) << 16) |  // Data nibble
+                        (1 << 20) |             // Final OE is still high (write mode)
+                        ((addr >> 7) << 22));   // Column address. Note it starts at A1 not A0.
+
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
+    pio_sm_get(pio, sm);                        // Discard the dummy data bit
+}
 
 // Routines to set up and tear down the PIO program (and the RAM test)
 void ram44256_64_16_setup_pio(uint speed_grade, int ic)
@@ -253,6 +311,8 @@ void ram4416_setup_pio(uint speed_grade, uint variant)
 {
    ram44256_64_16_setup_pio(speed_grade, 0);
 }
+
+void ram4416_half_setup_pio(uint speed_grade, uint variant);
 
 void ram44256_teardown_pio()
 {
@@ -293,6 +353,42 @@ static const mem_chip_t ram4416_chip  = { .setup_pio = ram4416_setup_pio,
                                           .speed_grades = RAM4416_DELAYS,
                                           .chip_name = "4416 (16Kx4)",
                                           .speed_names = {"120ns", "150ns", "200ns"} };
+
+// This RAM chip configuration
+static const mem_chip_variants_t ram4416_half_chip_variants = {
+                                          .num_variants = 2,
+                                          .variant_names = {"TMS4408T (low)", "TMS4408B (high)"} };
+
+static mem_chip_t ram4416_half_chip = { .setup_pio = ram4416_half_setup_pio,
+                                          .teardown_pio = ram44256_teardown_pio,
+                                          .ram_read = ram4416_ram_read,
+                                          .ram_write = ram4416_ram_write,
+                                          .mem_size = 8192,
+                                          .bits = 4,
+                                          .variants = &ram4416_half_chip_variants,
+                                          .speed_grades = RAM4416_DELAYS,
+                                          .chip_name = "4408 (8Kx4 use 4416skt)",
+                                          .speed_names = {"120ns", "150ns", "200ns"} };
+
+// Only used for half-qualified 4408 devices
+void ram4416_half_setup_pio(uint speed_grade, uint variant)
+{
+    ram4416_setup_pio(speed_grade, 0);
+
+    // Use appropriate read and write functions.
+    switch (variant) {
+        case 0:
+            ram4416_half_chip.ram_read = ram4416_half0_read;
+            ram4416_half_chip.ram_write = ram4416_half0_write;
+            break;
+        case 1:
+            ram4416_half_chip.ram_read = ram4416_half1_read;
+            ram4416_half_chip.ram_write = ram4416_half1_write;
+            break;
+        default:
+            break;
+    }
+}
 
 
 %}

@@ -236,7 +236,7 @@ static const mem_chip_t ram4116_chip = { .setup_pio = ram4116_setup_pio,
 // This RAM chip configuration
 static const mem_chip_variants_t ram4116_half_chip_variants = {
                                           .num_variants = 2,
-                                          .variant_names = {"MK4108-40 (low)", "MK41408-41 (high)"} };
+                                          .variant_names = {"MK4108-40 (low)", "MK4108-41 (high)"} };
 static mem_chip_t ram4116_half_chip = { .setup_pio = ram4116_half_setup_pio,
                                           .teardown_pio = ram4116_teardown_pio,
                                           .ram_read = ram4116_ram_read,
@@ -274,9 +274,9 @@ void ram4116_half_setup_pio(uint speed_grade, uint variant)
             ram4116_half_chip.ram_write = ram4116_half0_write;
             break;
         case 1:
-           ram4116_half_chip.ram_read = ram4116_half1_read;
-           ram4116_half_chip.ram_write = ram4116_half1_write;
-           break;
+            ram4116_half_chip.ram_read = ram4116_half1_read;
+            ram4116_half_chip.ram_write = ram4116_half1_write;
+            break;
         default:
             break;
     }
