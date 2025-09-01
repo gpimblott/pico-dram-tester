@@ -1,5 +1,5 @@
 ;
-; 4132 Test Program
+; 4132 (stacked) Test Program
 ;
 
 ; Pin Assignments
@@ -138,7 +138,7 @@ void ram4132_ram_write(int addr, int data)
 }
 
 // Routines to set up and tear down the PIO program (and the RAM test)
-void ram4132_setup_pio(uint speed_grade)
+void ram4132_setup_pio(uint speed_grade, uint variant)
 {
     uint pin = 5;
     set_current_pio_program(&ram4132_program);
@@ -156,14 +156,14 @@ void ram4132_teardown_pio()
 }
 
 // This RAM chip configuration
-static const mem_chip_t ram4132_chip = { .setup_pio = ram4132_setup_pio,
+static const mem_chip_t ram4132_stk_chip = { .setup_pio = ram4132_setup_pio,
                                           .teardown_pio = ram4132_teardown_pio,
                                           .ram_read = ram4132_ram_read,
                                           .ram_write = ram4132_ram_write,
                                           .mem_size = 32768,
                                           .bits = 1,
                                           .speed_grades = RAM4132_DELAYS,
-                                          .chip_name = "4132 (32Kx1)",
+                                          .chip_name = "4132 (32Kx1, stacked)",
                                           .speed_names = {"150ns", "200ns", "250ns", "300ns"} };
 
 

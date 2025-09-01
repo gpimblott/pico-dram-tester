@@ -1,5 +1,5 @@
 ;
-; 4116 Test Program
+; 4116, 4108, and 4027 Test Program
 ;
 
 ; Pin Assignments
@@ -118,6 +118,44 @@ int ram4116_ram_read(int addr)
     return d;
 }
 
+int ram4027_ram_read(int addr)
+{
+    // addr = ccccccrrrrrr
+    uint d;
+    pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
+                        0 << 1 |                // Write flag
+                        (addr & 0x3f | 0x40) << 2 |    // Row address
+                        (addr >> 6) << 10|   // Column address
+                        ((0 & 1) << 19));       // Data bit
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for data to arrive
+    d = pio_sm_get(pio, sm);                 // Return the data
+    //gpio_put(GPIO_LED, d);
+    return d;
+}
+
+
+int ram4116_half0_read(int addr)
+{
+    pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
+                        0 << 1 |                // Write flag
+                        (addr & 0x7f) << 2 |    // Row address
+                        (addr >> 7) << 11|   // Column address
+                        ((0 & 1) << 19));       // Data bit
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for data to arrive
+    return pio_sm_get(pio, sm);                 // Return the data
+}
+
+int ram4116_half1_read(int addr)
+{
+    pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
+                        0 << 1 |                // Write flag
+                        (addr & 0x7f) << 2 |    // Row address
+                        (addr >> 7) << 11 | (1 << 10) |   // Column address
+                        ((0 & 1) << 19));       // Data bit
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for data to arrive
+    return pio_sm_get(pio, sm);                 // Return the data
+}
+
 void ram4116_ram_write(int addr, int data)
 {
     pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
@@ -129,8 +167,42 @@ void ram4116_ram_write(int addr, int data)
     pio_sm_get(pio, sm);                        // Discard the dummy data bit
 }
 
+void ram4027_ram_write(int addr, int data)
+{
+    pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
+                        1 << 1 |                // Write flag
+                        (addr & 0x3f | 0x40) << 2 |    // Row address
+                        (addr >> 6) << 10|   // Column address
+                        ((data & 1) << 19));    // Data bit
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
+    pio_sm_get(pio, sm);                        // Discard the dummy data bit
+}
+
+void ram4116_half0_write(int addr, int data)
+{
+    pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
+                        1 << 1 |                // Write flag
+                        (addr & 0x7f) << 2 |    // Row address
+                        (addr >> 7) << 11|   // Column address
+                        ((data & 1) << 19));    // Data bit
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
+    pio_sm_get(pio, sm);                        // Discard the dummy data bit
+}
+
+void ram4116_half1_write(int addr, int data)
+{
+    pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
+                        1 << 1 |                // Write flag
+                        (addr & 0x7f) << 2 |    // Row address
+                        (addr >> 7) << 11 | (1 << 10) |  // Column address
+                        ((data & 1) << 19));    // Data bit
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
+    pio_sm_get(pio, sm);                        // Discard the dummy data bit
+}
+
+
 // Routines to set up and tear down the PIO program (and the RAM test)
-void ram4116_setup_pio(uint speed_grade)
+void ram4116_setup_pio(uint speed_grade, uint variant)
 {
     uint pin = 5;
     set_current_pio_program(&ram4116_program);
@@ -140,6 +212,8 @@ void ram4116_setup_pio(uint speed_grade)
     ram4116_program_init(pio, sm, offset, pin);
     pio_sm_set_enabled(pio, sm, true);
 }
+
+void ram4116_half_setup_pio(uint speed_grade, uint variant);
 
 void ram4116_teardown_pio()
 {
@@ -154,10 +228,59 @@ static const mem_chip_t ram4116_chip = { .setup_pio = ram4116_setup_pio,
                                           .ram_write = ram4116_ram_write,
                                           .mem_size = 16384,
                                           .bits = 1,
+                                          .variants = NULL,
                                           .speed_grades = RAM4116_DELAYS,
                                           .chip_name = "4116 (16Kx1)",
                                           .speed_names = {"120ns", "150ns", "200ns", "250ns", "300ns"} };
 
+// This RAM chip configuration
+static const mem_chip_variants_t ram4116_half_chip_variants = {
+                                          .num_variants = 2,
+                                          .variant_names = {"MK4108-40 (low)", "MK4108-41 (high)"} };
+static mem_chip_t ram4116_half_chip = { .setup_pio = ram4116_half_setup_pio,
+                                          .teardown_pio = ram4116_teardown_pio,
+                                          .ram_read = ram4116_ram_read,
+                                          .ram_write = ram4116_ram_write,
+                                          .mem_size = 8192,
+                                          .bits = 1,
+                                          .variants = &ram4116_half_chip_variants,
+                                          .speed_grades = RAM4116_DELAYS,
+                                          .chip_name = "4108 (8Kx1 use 4116skt)",
+                                          .speed_names = {"120ns", "150ns", "200ns", "250ns", "300ns"} };
+
+// This RAM chip configuration
+static mem_chip_t ram4027_chip = { .setup_pio = ram4116_setup_pio,
+                                   .teardown_pio = ram4116_teardown_pio,
+                                   .ram_read = ram4027_ram_read,
+                                   .ram_write = ram4027_ram_write,
+                                   .mem_size = 4096,
+                                   .bits = 1,
+                                   .variants = NULL,
+                                   .speed_grades = RAM4116_DELAYS, // FIXME: check timings
+                                   .chip_name = "4027 (4Kx1 use 4116skt)",
+                                   .speed_names = {"120ns", "150ns", "200ns", "250ns", "300ns"} };
+
+
+
+// Only used for half-qualified 4108 devices
+void ram4116_half_setup_pio(uint speed_grade, uint variant)
+{
+    ram4116_setup_pio(speed_grade, 0);
+
+    // Use appropriate read and write functions.
+    switch (variant) {
+        case 0:
+            ram4116_half_chip.ram_read = ram4116_half0_read;
+            ram4116_half_chip.ram_write = ram4116_half0_write;
+            break;
+        case 1:
+            ram4116_half_chip.ram_read = ram4116_half1_read;
+            ram4116_half_chip.ram_write = ram4116_half1_write;
+            break;
+        default:
+            break;
+    }
+}
 
 
 %}

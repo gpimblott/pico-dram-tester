@@ -62,18 +62,23 @@ static uint ram_bit_mask;
 
 gui_listbox_t *cur_menu;
 
-#define MAIN_MENU_ITEMS 8
+#define MAIN_MENU_ITEMS 16
 char *main_menu_items[MAIN_MENU_ITEMS];
 gui_listbox_t main_menu = {7, 40, 220, MAIN_MENU_ITEMS, 4, 0, 0, main_menu_items};
 
-#define NUM_CHIPS 8
-const mem_chip_t *chip_list[] = {&ram4116_chip, &ram4132_chip, &ram4164_chip, &ram41128_chip,
-                                 &ram41256_chip, &ram4416_chip, &ram4464_chip, &ram44256_chip};
+#define NUM_CHIPS 12
+const mem_chip_t *chip_list[] = {&ram4027_chip, &ram4116_half_chip, &ram4116_chip,
+                                 &ram4132_stk_chip, &ram4164_half_chip, &ram4164_chip,
+                                 &ram41128_chip, &ram41256_chip, &ram4416_half_chip,
+                                 &ram4416_chip, &ram4464_chip, &ram44256_chip};
 
+gui_listbox_t variants_menu = {7, 40, 220, 0, 4, 0, 0, 0};
 gui_listbox_t speed_menu = {7, 40, 220, 0, 4, 0, 0, 0};
+
 
 typedef enum {
     MAIN_MENU,
+    VARIANT_MENU,
     SPEED_MENU,
     DO_SOCKET,
     DO_TEST,
@@ -235,7 +240,6 @@ static inline bool march_element(int addr_size, bool descending, int algorithm)
 uint32_t marchb_testbit(uint32_t addr_size)
 {
     bool ret;
-    me_w0(0); // ES Hack
     ret = march_element(addr_size, false, 0);
     if (!ret) return false;
     ret = march_element(addr_size, false, 1);
@@ -312,7 +316,7 @@ uint32_t psrandom_test(uint32_t addr_size, uint32_t bits)
         psrand_seed(random_seeds[i]);
         for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
             bitsout = psrand_next_bits(bits);
-            ram_write(stat_cur_addr, bits);
+            ram_write(stat_cur_addr, bitsout);
         }
 
         // Reseed and then read the data back
@@ -320,7 +324,7 @@ uint32_t psrandom_test(uint32_t addr_size, uint32_t bits)
         for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
             bitsout = psrand_next_bits(bits);
             bitsin = ram_read(stat_cur_addr);
-            if (bits != bitsin) {
+            if (bitsout != bitsin) {
                 return 1;
             }
         }
@@ -368,6 +372,9 @@ uint32_t all_ram_tests(uint32_t addr_size, uint32_t bits)
 {
     int failed;
     int test = 0;
+// Initialize RAM by performing n RAS cycles
+    march_element(addr_size, false, 0);
+// Now run actual tests
     queue_add_blocking(&stat_cur_test, &test);
     failed = marchb_test(addr_size, bits);
     if (failed) return failed;
@@ -387,32 +394,33 @@ typedef struct {
     uint32_t hcount;
 } pin_debounce_t;
 
-#define DEBOUNCE_COUNT 1000
+#define ENC_DEBOUNCE_COUNT 1000
+#define BUTTON_DEBOUNCE_COUNT 50000
 
 // Debounces a pin
 uint8_t do_debounce(pin_debounce_t *d)
 {
     if (gpio_get(d->pin)) {
         d->hcount++;
-        if (d->hcount > DEBOUNCE_COUNT) d->hcount = DEBOUNCE_COUNT;
+        if (d->hcount > ENC_DEBOUNCE_COUNT) d->hcount = ENC_DEBOUNCE_COUNT;
     } else {
         d->hcount = 0;
     }
-    return (d->hcount >= DEBOUNCE_COUNT) ? 1 : 0;
+    return (d->hcount >= ENC_DEBOUNCE_COUNT) ? 1 : 0;
 }
 
 // Returns true only *once* when a button is pushed. No key repeat.
 bool is_button_pushed(pin_debounce_t *pin_b)
 {
     if (!gpio_get(pin_b->pin)) {
-        if (pin_b->hcount < DEBOUNCE_COUNT) {
-            pin_b->hcount++;
-            if (pin_b->hcount == DEBOUNCE_COUNT) {
-                return true;
-            }
+        if (pin_b->hcount == 0) {
+            pin_b->hcount = BUTTON_DEBOUNCE_COUNT;
+            return true;
         }
     } else {
-        pin_b->hcount = 0;
+        if (pin_b->hcount > 0) {
+            pin_b->hcount--;
+        }
     }
     return false;
 }
@@ -422,6 +430,16 @@ void show_main_menu()
 {
     cur_menu = &main_menu;
     paint_dialog("Select Device");
+    gui_listbox(cur_menu, LIST_ACTION_NONE);
+}
+
+void show_variant_menu()
+{
+    uint chip = main_menu.sel_line;
+    cur_menu = &variants_menu;
+    paint_dialog("Select Variant");
+    variants_menu.items = (char **)chip_list[chip]->variants->variant_names;
+    variants_menu.tot_lines = chip_list[chip]->variants->num_variants;
     gui_listbox(cur_menu, LIST_ACTION_NONE);
 }
 
@@ -507,7 +525,7 @@ void start_the_ram_test()
     power_on();
 
     // Get the PIO going
-    chip_list[main_menu.sel_line]->setup_pio(speed_menu.sel_line);
+    chip_list[main_menu.sel_line]->setup_pio(speed_menu.sel_line, variants_menu.sel_line);
 
     // Dispatch the second core
     // (The memory size is from our memory description data structure)
@@ -637,6 +655,17 @@ void button_action()
     // Do something based on the current menu
     switch (gui_state) {
         case MAIN_MENU:
+            // Check for variant
+            if (chip_list[main_menu.sel_line]->variants == NULL) {
+                gui_state = SPEED_MENU;
+                show_speed_menu();
+            } else {
+                gui_state = VARIANT_MENU;
+                show_variant_menu();
+            }
+            break;
+        case VARIANT_MENU:
+            // Set up variant
             gui_state = SPEED_MENU;
             show_speed_menu();
             break;
@@ -653,7 +682,10 @@ void button_action()
         case DO_TEST:
             break;
         case TEST_RESULTS:
-            // TODO: Maybe make it easy to run the test again?
+            // Quick retest to save time
+            gui_state = DO_TEST;
+            show_test_gui();
+            start_the_ram_test();
             break;
         default:
             gui_state = MAIN_MENU;
@@ -667,21 +699,29 @@ void button_back()
     switch (gui_state) {
         case MAIN_MENU:
             break;
-        case SPEED_MENU:
+        case VARIANT_MENU:
             gui_state = MAIN_MENU;
             show_main_menu();
+            break;
+        case SPEED_MENU:
+            // Check if our selection has a variant
+            if (chip_list[main_menu.sel_line]->variants == NULL) {
+                gui_state = MAIN_MENU;
+                show_main_menu();
+            } else {
+                gui_state = VARIANT_MENU;
+                show_variant_menu();
+            }
             break;
         case DO_SOCKET:
             gui_state = SPEED_MENU;
             show_speed_menu();
             break;
         case DO_TEST:
-            gui_state = SPEED_MENU;
-            show_speed_menu();
             break;
         case TEST_RESULTS:
-            gui_state = MAIN_MENU;
-            show_main_menu();
+            gui_state = SPEED_MENU;
+            show_speed_menu();
             break;
         default:
             gui_state = MAIN_MENU;
@@ -699,14 +739,14 @@ void do_buttons()
 
 void wheel_increment()
 {
-    if (gui_state == MAIN_MENU || gui_state == SPEED_MENU) {
+    if (gui_state == MAIN_MENU || gui_state == SPEED_MENU || gui_state == VARIANT_MENU) {
         gui_listbox(cur_menu, LIST_ACTION_DOWN);
     }
 }
 
 void wheel_decrement()
 {
-    if (gui_state == MAIN_MENU || gui_state == SPEED_MENU) {
+    if (gui_state == MAIN_MENU || gui_state == SPEED_MENU || gui_state == VARIANT_MENU) {
         gui_listbox(cur_menu, LIST_ACTION_UP);
     }
 }

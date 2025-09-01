@@ -1,5 +1,5 @@
 ;
-; 4164 Test Program
+; 4164 (and 4132 half-qualified chips) Test Program
 ;
 
 ; Pin Assignments
@@ -121,6 +121,38 @@ int ram4164_ram_read(int addr)
     return d;
 }
 
+int ram4164_half_col0_read(int addr)
+{
+    pio_sm_put(pio, sm, (addr & 0xff) << 2 |     // Row address
+                       (addr & 0x7f00) << 2 );   // Column address
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for data to arrive
+    return pio_sm_get(pio, sm);
+}
+
+int ram4164_half_col1_read(int addr)
+{
+    pio_sm_put(pio, sm, (addr & 0xff) << 2 |     // Row address
+                       ((addr & 0x7f00) | 0x8000) << 2 );  // Column address
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for data to arrive
+    return pio_sm_get(pio, sm);
+}
+
+int ram4164_half_row0_read(int addr)
+{
+    pio_sm_put(pio, sm, (addr & 0x7f) << 2 |     // Row address
+                       ((addr << 1) & 0xff00) << 2 );  // Column address
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for data to arrive
+    return pio_sm_get(pio, sm);
+}
+
+int ram4164_half_row1_read(int addr)
+{
+    pio_sm_put(pio, sm, ((addr & 0x7f) | 0x80) << 2 |     // Row address
+                       ((addr << 1) & 0xff00) << 2 );  // Column address
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for data to arrive
+    return pio_sm_get(pio, sm);
+}
+
 void ram4164_ram_write(int addr, int data)
 {
     pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
@@ -132,8 +164,55 @@ void ram4164_ram_write(int addr, int data)
     pio_sm_get(pio, sm);                        // Discard the dummy data bit
 }
 
+void ram4164_half_col0_write(int addr, int data)
+{
+    // For 4164, addr = ccccccccrrrrrrrr.
+    // For 4132, addr =  cccccccrrrrrrrr.
+    // We need   addr = 0cccccccrrrrrrrr.
+    pio_sm_put(pio, sm, 1 << 1 |                // Write flag
+                        (addr & 0xff) << 2 |    // Row address
+                        (addr & 0x7f00) << 2|   // Column address
+                        ((data & 1) << 19));    // Data bit
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
+    pio_sm_get(pio, sm);                        // Discard the dummy data bit
+}
+
+void ram4164_half_col1_write(int addr, int data)
+{
+    pio_sm_put(pio, sm, 1 << 1 |                // Write flag
+                        (addr & 0xff) << 2 |    // Row address
+                        ((addr & 0x7f00) | 0x8000) << 2|   // Column address
+                        ((data & 1) << 19));    // Data bit
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
+    pio_sm_get(pio, sm);                        // Discard the dummy data bit
+}
+
+void ram4164_half_row0_write(int addr, int data)
+{
+    // For 4164, addr = ccccccccrrrrrrrr.
+    // For 4132, addr =  ccccccccrrrrrrr.
+    // But we need      cccccccc0rrrrrrr.
+    // addr = ccccccccrrrrrrr
+    pio_sm_put(pio, sm, 1 << 1 |                // Write flag
+                        (addr & 0x7f) << 2 |    // Row address
+                        ((addr << 1) & 0xff00) << 2|   // Column address
+                        ((data & 1) << 19));    // Data bit
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
+    pio_sm_get(pio, sm);                        // Discard the dummy data bit
+}
+
+void ram4164_half_row1_write(int addr, int data)
+{
+    pio_sm_put(pio, sm, 1 << 1 |                // Write flag
+                        ((addr & 0x7f) | 0x80) << 2 |    // Row address
+                        ((addr << 1) & 0xff00) << 2|   // Column address
+                        ((data & 1) << 19));    // Data bit
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
+    pio_sm_get(pio, sm);                        // Discard the dummy data bit
+}
+
 // Routines to set up and tear down the PIO program (and the RAM test)
-void ram4164_setup_pio(uint speed_grade)
+void ram4164_setup_pio(uint speed_grade, uint variant)
 {
     uint pin = 5;
     set_current_pio_program(&ram4164_program);
@@ -143,6 +222,8 @@ void ram4164_setup_pio(uint speed_grade)
     ram4164_program_init(pio, sm, offset, pin);
     pio_sm_set_enabled(pio, sm, true);
 }
+
+void ram4164_half_setup_pio(uint speed_grade, uint variant);
 
 void ram4164_teardown_pio()
 {
@@ -157,9 +238,54 @@ static const mem_chip_t ram4164_chip = { .setup_pio = ram4164_setup_pio,
                                           .ram_write = ram4164_ram_write,
                                           .mem_size = 65536,
                                           .bits = 1,
+                                          .variants = NULL,
                                           .speed_grades = RAM4164_DELAYS,
                                           .chip_name = "4164 (64Kx1)",
                                           .speed_names = {"100ns", "120ns", "150ns", "200ns", "250ns", "300ns"} };
+
+// This RAM chip configuration
+static const mem_chip_variants_t ram4164_half_chip_variants = {
+                                          .num_variants = 4,
+                                          .variant_names = {"TMS4532xxNL3 (low)", "TMS4532xxNL4 (high)",
+                                                            "M3732L (low)", "M3732H (high)" } };
+static mem_chip_t ram4164_half_chip = { .setup_pio = ram4164_half_setup_pio,
+                                          .teardown_pio = ram4164_teardown_pio,
+                                          .ram_read = ram4164_ram_read,
+                                          .ram_write = ram4164_ram_write,
+                                          .mem_size = 32768,
+                                          .bits = 1,
+                                          .variants = &ram4164_half_chip_variants,
+                                          .speed_grades = RAM4164_DELAYS,
+                                          .chip_name = "4132 (32Kx1 use 4164skt)",
+                                          .speed_names = {"100ns", "120ns", "150ns", "200ns", "250ns", "300ns"} };
+
+// Only used for half-qualified 4132 devices
+void ram4164_half_setup_pio(uint speed_grade, uint variant)
+{
+    ram4164_setup_pio(speed_grade, 0);
+
+    // Use appropriate read and write functions.
+    switch (variant) {
+        case 0:
+            ram4164_half_chip.ram_read = ram4164_half_row0_read;
+            ram4164_half_chip.ram_write = ram4164_half_row0_write;
+            break;
+        case 1:
+           ram4164_half_chip.ram_read = ram4164_half_row1_read;
+           ram4164_half_chip.ram_write = ram4164_half_row1_write;
+           break;
+        case 2:
+           ram4164_half_chip.ram_read = ram4164_half_col0_read;
+           ram4164_half_chip.ram_write = ram4164_half_col0_write;
+           break;
+        case 3:
+           ram4164_half_chip.ram_read = ram4164_half_col1_read;
+           ram4164_half_chip.ram_write = ram4164_half_col1_write;
+           break;
+        default:
+            break;
+    }
+}
 
 
 
