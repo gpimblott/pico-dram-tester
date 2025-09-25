@@ -36,6 +36,11 @@ Out of scope
 * SRAM, DRAM chips larger than 1MBit
 * Logic chips
 
+## Versions
+0.1 - Beta version designed and coded by schlae (@tubetime)
+0.2 - Changed to higher voltage as recommended by schlae in notes below.
+0.3 - Restructure code by G.Pimblott
+
 ## Construction
 
 [Fab package](fab/pico-dram-tester-rev2.zip)
