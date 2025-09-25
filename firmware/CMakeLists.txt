@@ -40,7 +40,7 @@ pico_generate_pio_header(pmemtest ${CMAKE_CURRENT_LIST_DIR}/ram41128.pio)
 pico_generate_pio_header(pmemtest ${CMAKE_CURRENT_LIST_DIR}/ram41256.pio)
 pico_generate_pio_header(pmemtest ${CMAKE_CURRENT_LIST_DIR}/ram_4bit.pio)
 
-target_sources(pmemtest PRIVATE pmemtest.c st7789.c gui.c pio_patcher.c xoroshiro64starstar.c)
+target_sources(pmemtest PRIVATE pmemtest.c st7789.c gui.c pio_patcher.c xoroshiro64starstar.c hardware.c ui.c dram_tests.c icons.c app_state.c)
 
 target_link_libraries(pmemtest PRIVATE pico_stdlib pico_multicore hardware_pio hardware_spi)
 

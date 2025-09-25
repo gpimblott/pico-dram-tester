@@ -1,5 +1,8 @@
-#ifndef UI_H
-#define UI_H
+#ifndef GUI_H
+#define GUI_H
+
+#include <stdint.h>
+#include "st7789.h"
 
 // A few colors
 #define COLOR_BLACK 0x0000
