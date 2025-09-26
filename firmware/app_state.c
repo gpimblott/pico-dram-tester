@@ -48,7 +48,7 @@ uint ram_bit_mask;
 uint64_t random_seeds[PSEUDO_VALUES];
 
 // Array of strings holding the names of the RAM tests for display purposes
-const char *ram_test_names[] = {"March-B", "Pseudo", "Refresh"};
+const char *ram_test_names[] = {"March-B", "Pseudo", "Refresh", "Checkboard"};
 
 // Pointer to the currently active menu in the GUI
 gui_listbox_t *cur_menu;
