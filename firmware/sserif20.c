@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include "st7789.h"
 
 // Font size: 12
 // Pixel height: 20
