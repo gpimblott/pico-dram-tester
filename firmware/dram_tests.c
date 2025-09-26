@@ -112,6 +112,12 @@ uint32_t all_ram_tests(uint32_t addr_size, uint32_t bits)
     if (failed)
         return failed;
 
+    test = 3;
+    queue_add_blocking(&stat_cur_test, &test); // Update UI with current test
+    failed = checkerboard_test(addr_size, bits);
+    if (failed)
+        return failed;
+
     return 0; // All tests passed
 }
 
@@ -449,4 +455,60 @@ static uint32_t refresh_subtest(uint32_t addr_size, uint32_t bits, uint32_t time
 static uint32_t refresh_test(uint32_t addr_size, uint32_t bits)
 {
     return refresh_subtest(addr_size, bits, 5000); // 5000 us delay for refresh test
+}
+
+/**
+ * @brief Executes the Checkerboard test on the RAM chip.
+ *
+ * Writes alternating patterns (0x5555... and 0xAAAA...) to memory,
+ * then reads back and verifies the data.
+ *
+ * @param addr_size The total number of addresses in the RAM chip.
+ * @param bits The number of data bits in the RAM chip.
+ * @return 0 if the test passes, 1 if a mismatch is found.
+ */
+static uint32_t checkerboard_test(uint32_t addr_size, uint32_t bits)
+{
+    uint32_t pattern1 = 0x55555555 & ((1ULL << bits) - 1); // Checkerboard pattern
+    uint32_t pattern2 = 0xAAAAAAAA & ((1ULL << bits) - 1); // Inverted checkerboard pattern
+    uint32_t bitsin;
+
+    for (int loop = 0; loop < 10; loop++)
+    {
+        // Test with pattern 1 (0x5555...)
+        stat_cur_subtest = 0; // Subtest 0 for pattern 1 write
+        for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++)
+        {
+            ram_write(stat_cur_addr, pattern1);
+        }
+
+        stat_cur_subtest = 1; // Subtest 1 for pattern 1 read
+        for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++)
+        {
+            bitsin = ram_read(stat_cur_addr);
+            if (bitsin != pattern1)
+            {
+                return 1; // Mismatch
+            }
+        }
+
+        // Test with pattern 2 (0xAAAA...)
+        stat_cur_subtest = 2; // Subtest 2 for pattern 2 write
+        for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++)
+        {
+            ram_write(stat_cur_addr, pattern2);
+        }
+
+        stat_cur_subtest = 3; // Subtest 3 for pattern 2 read
+        for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++)
+        {
+            bitsin = ram_read(stat_cur_addr);
+            if (bitsin != pattern2)
+            {
+                return 1; // Mismatch
+            }
+        }
+    }
+
+    return 0; // Test passed
 }
