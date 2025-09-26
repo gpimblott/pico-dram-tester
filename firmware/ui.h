@@ -6,6 +6,7 @@
 #include "pico/time.h"
 
 // Function prototypes
+void show_splash_screen();
 void setup_main_menu();
 void show_main_menu();
 void show_variant_menu();

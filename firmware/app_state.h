@@ -8,6 +8,8 @@
 #include "gui.h"
 #include "mem_chip.h"
 
+#define APP_VERSION "0.3"
+
 #define GPIO_POWER 4
 #define GPIO_QUAD_A 22
 #define GPIO_QUAD_B 26
@@ -22,6 +24,7 @@
 
 // Enums
 typedef enum {
+    SPLASH_SCREEN,
     MAIN_MENU,
     VARIANT_MENU,
     SPEED_MENU,
