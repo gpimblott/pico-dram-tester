@@ -399,7 +399,7 @@ static uint32_t refresh_subtest(uint32_t addr_size, uint32_t bits, uint32_t time
     // Write pseudo-random data to all addresses
     for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
         bitsout = psrand_next_bits(bits);
-        ram_write(stat_cur_addr, bits); // Note: This writes 'bits' value, not 'bitsout'. This might be a bug or intentional.
+        ram_write(stat_cur_addr, bitsout); // Note: This writes 'bits' value, not 'bitsout'. This might be a bug or intentional.
     }
 
     sleep_us(time_delay); // Wait for the specified delay
@@ -409,7 +409,7 @@ static uint32_t refresh_subtest(uint32_t addr_size, uint32_t bits, uint32_t time
     for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
         bitsout = psrand_next_bits(bits);
         bitsin = ram_read(stat_cur_addr);
-        if (bits != bitsin) { // Note: This compares 'bits' with 'bitsin', not 'bitsout'. This might be a bug or intentional.
+        if (bitsout != bitsin) { // Note: This compares 'bits' with 'bitsin', not 'bitsout'. This might be a bug or intentional.
             return 1; // Return 1 on first mismatch (failure)
         }
     }
