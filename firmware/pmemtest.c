@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
+#include "hardware.h"
 #include "pico/util/queue.h"
 #include "app_state.h"
 #include "hardware/pio.h"
@@ -63,7 +64,11 @@ int main() {
     gpio_init(GPIO_POWER);
     power_off();
 
-    // Set up second core
+    init_buttons_encoder();
+
+    show_splash_screen();
+
+    // Set up the queues
     queue_init(&call_queue, sizeof(queue_entry_t), 2);
     queue_init(&results_queue, sizeof(int32_t), 2);
     queue_init(&stat_cur_test, sizeof(int), 2);

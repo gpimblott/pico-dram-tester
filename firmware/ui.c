@@ -2,8 +2,11 @@
 #include "app_state.h"
 #include "dram_tests.h"
 #include "hardware.h"
+#include "hardware.h"
 #include "st7789.h"
 #include <stdio.h>
+#include "sserif16.h"
+#include "sserif20.h"
 
 // Icons
 #include "icons.h"
@@ -12,6 +15,20 @@
 void start_the_ram_test();
 void stop_the_ram_test();
 
+void show_splash_screen() {
+    st7789_fill(0, 0, 240, 135, COLOR_BLACK);
+    font_string(20, 40, "pico-dram-tester", 255, COLOR_WHITE, COLOR_BLACK, &sserif20, true);
+    font_string(20, 60, "v0.1", 255, COLOR_WHITE, COLOR_BLACK, &sserif20, false);
+    font_string(20, 100, "Click to continue...", 255, COLOR_WHITE, COLOR_BLACK, &sserif16, false);
+
+    static pin_debounce_t action_btn = {GPIO_QUAD_BTN, 0};
+    while (true) {
+        if (is_button_pushed(&action_btn)) {
+            break;
+        }
+    }
+}
+
 void setup_main_menu()
 {
     uint i;
@@ -19,42 +36,6 @@ void setup_main_menu()
         main_menu_items[i] = (char *)chip_list[i]->chip_name;
     }
     main_menu.tot_lines = NUM_CHIPS;
-}
-
-typedef struct {
-    uint32_t pin;
-    uint32_t hcount;
-} pin_debounce_t;
-
-#define ENC_DEBOUNCE_COUNT 1000
-#define BUTTON_DEBOUNCE_COUNT 50000
-
-// Debounces a pin
-uint8_t do_debounce(pin_debounce_t *d)
-{
-    if (gpio_get(d->pin)) {
-        d->hcount++;
-        if (d->hcount > ENC_DEBOUNCE_COUNT) d->hcount = ENC_DEBOUNCE_COUNT;
-    } else {
-        d->hcount = 0;
-    }
-    return (d->hcount >= ENC_DEBOUNCE_COUNT) ? 1 : 0;
-}
-
-// Returns true only *once* when a button is pushed. No key repeat.
-bool is_button_pushed(pin_debounce_t *pin_b)
-{
-    if (!gpio_get(pin_b->pin)) {
-        if (pin_b->hcount == 0) {
-            pin_b->hcount = BUTTON_DEBOUNCE_COUNT;
-            return true;
-        }
-    } else {
-        if (pin_b->hcount > 0) {
-            pin_b->hcount--;
-        }
-    }
-    return false;
 }
 
 // Setup and display the main menu
