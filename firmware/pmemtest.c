@@ -64,7 +64,7 @@ int main() {
     int i, retval; // Loop counter and return value variable
 
     // Increase core voltage slightly (default is 1.1V) to better handle overclock
-    vreg_set_voltage(VREG_VOLTAGE_1_20);
+    vreg_set_voltage(VREG_VOLTAGE_1_25);
 
     // PLL->prim = 0x51000. (Commented out, possibly for future reference or debugging)
 
