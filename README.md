@@ -40,6 +40,7 @@ Out of scope
 * 0.1 - Beta version designed and coded by schlae (@tubetime)
 * 0.2 - Changed to higher voltage as recommended by schlae in notes below.
 * 0.3 - Restructure code by G.Pimblott and merged in board changes for DC Jack by Markeno76
+* 0.4 - Added Checkerboard test
 
 ## Construction
 
