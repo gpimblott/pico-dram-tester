@@ -18,6 +18,16 @@
 // Icons for display
 #include "icons.h"
 
+// X-coordinate for the status icon display
+#define STATUS_ICON_X 155
+// Y-coordinate for the status icon display
+#define STATUS_ICON_Y 65
+
+// X-coordinate for the cell status display
+#define CELL_STAT_X 9
+// Y-coordinate for the cell status display
+#define CELL_STAT_Y 33
+
 // Forward declarations for functions used in this file
 void start_the_ram_test();
 void stop_the_ram_test();
@@ -48,8 +58,9 @@ void show_splash_screen() {
     // Cell status area. 32x32 elements.
     fancy_rect(7, 31, 224, 100, B_SUNKEN_OUTER); // Usable size is 220x80.
     st7789_fill(9, 33, 220, 96, COLOR_BLACK);
-    font_string(20, 40, "pico-dram-tester", 255, COLOR_WHITE, COLOR_BLACK, &sserif20, true);
+    font_string(20, 40, "Pico DRAM Tester", 255, COLOR_WHITE, COLOR_BLACK, &sserif20, true);
     font_string(20, 60, APP_VERSION, 255, COLOR_WHITE, COLOR_BLACK, &sserif20, false);
+    draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &check_icon);
     font_string(20, 100, "Click to continue...", 255, COLOR_WHITE, COLOR_BLACK, &sserif16, false);
 }
 
@@ -92,16 +103,12 @@ void show_speed_menu()
 {
     uint chip = main_menu.sel_line;
     cur_menu = &speed_menu;
-    paint_dialog("Select Speed Grade");
+    paint_dialog("Select DRAM Speed");
     speed_menu.items = (char **)chip_list[chip]->speed_names;
     speed_menu.tot_lines = chip_list[chip]->speed_grades;
     gui_listbox(cur_menu, LIST_ACTION_NONE);
 }
 
-// X-coordinate for the cell status display
-#define CELL_STAT_X 9
-// Y-coordinate for the cell status display
-#define CELL_STAT_Y 33
 
 /**
  * @brief Updates a single "dot" in the RAM test visualization area.
@@ -118,10 +125,6 @@ static inline void update_vis_dot(uint16_t cx, uint16_t cy, uint16_t col)
     st7789_fill(CELL_STAT_X + cx * 3, CELL_STAT_Y + cy * 3, 2, 2, col);
 }
 
-// X-coordinate for the status icon display
-#define STATUS_ICON_X 155
-// Y-coordinate for the status icon display
-#define STATUS_ICON_Y 65
 
 /**
  * @brief Callback function for animating the "drum" icon during a RAM test.
