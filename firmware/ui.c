@@ -57,11 +57,11 @@ void show_splash_screen() {
 
     // Cell status area. 32x32 elements.
     fancy_rect(7, 31, 224, 100, B_SUNKEN_OUTER); // Usable size is 220x80.
-    st7789_fill(9, 33, 220, 96, COLOR_BLACK);
-    font_string(20, 40, "Pico DRAM Tester", 255, COLOR_WHITE, COLOR_BLACK, &sserif20, true);
-    font_string(20, 60, APP_VERSION, 255, COLOR_WHITE, COLOR_BLACK, &sserif20, false);
+    st7789_fill(9, 33, 220, 96, COLOR_LTGRAY);
+    font_string(20, 40, "Pico DRAM Tester", 255, COLOR_BLACK, COLOR_LTGRAY, &sserif20, true);
+    font_string(20, 60, APP_VERSION, 255, COLOR_BLACK, COLOR_LTGRAY, &sserif20, false);
     draw_icon(STATUS_ICON_X, STATUS_ICON_Y, &check_icon);
-    font_string(20, 100, "Click to continue...", 255, COLOR_WHITE, COLOR_BLACK, &sserif16, false);
+    font_string(20, 100, "Click to continue...", 255, COLOR_BLACK, COLOR_LTGRAY, &sserif16, false);
 }
 
 /**
