@@ -116,16 +116,6 @@ void ram2114_ram_write(int addr, int data) {
     while (pio_sm_is_tx_fifo_full(pio, sm)) {}
 }
 
-
-pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
-                        1 << 1 |                // Write flag
-                        (addr & 0x3f | 0x40) << 2 |    // Row address
-                        (addr >> 6) << 10|   // Column address
-                        ((data & 1) << 19));    // Data bit
-    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
-    pio_sm_get(pio, sm);                        // Discard the dummy data bit
-
-
 void ram2114_setup_pio(uint speed_grade, uint variant) {
     uint pin = 5;
     set_current_pio_program(&ram2114_program);
