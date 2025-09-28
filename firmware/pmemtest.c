@@ -56,7 +56,7 @@ void core1_entry() {
  *
  * @return 0 on successful execution (though typically an embedded system loops indefinitely).
  */
-int main() {
+ int main() {
     uint offset; // Variable for PIO program offset (not directly used here, but common in PIO setup)
     uint16_t addr; // Generic address variable (not directly used here)
     uint8_t db = 0; // Generic byte variable (not directly used here)
@@ -64,7 +64,7 @@ int main() {
     int i, retval; // Loop counter and return value variable
 
     // Increase core voltage slightly (default is 1.1V) to better handle overclock
-    vreg_set_voltage(VREG_VOLTAGE_1_25);
+    vreg_set_voltage(VREG_VOLTAGE_1_20);
 
     // PLL->prim = 0x51000. (Commented out, possibly for future reference or debugging)
 
