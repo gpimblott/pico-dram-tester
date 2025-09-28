@@ -1,0 +1,153 @@
+;
+; 2114 SRAM Test Program (1K x 4-bit Static RAM)
+; Pin Assignments (example, adjust as needed for your wiring):
+; SP0  = A0
+; SP1  = A1
+; SP2  = A2
+; SP3  = A3
+; SP4  = A4
+; SP5  = A5
+; SP6  = A6
+; SP7  = A7
+; SP8  = D0 (bidirectional)
+; SP9  = D1 (bidirectional)
+; SP10 = D2 (bidirectional)
+; SP11 = D3 (bidirectional)
+; SP12 = CS# (active low)
+; SP13 = WE# (active low)
+; SP14 = OE# (active low)
+; SP15 = nc
+
+.pio_version 0
+.program ram2114
+
+; Protocol:
+; - Set address, CS#, WE#, OE# as needed
+; - For write: set data on D0-D3, WE# low, CS# low, OE# high
+; - For read:  WE# high, CS# low, OE# low, read D0-D3
+
+; OSR layout for each access (20 bits):
+; [0]   = 0: read, 1: write
+; [1:8] = address (A0-A7)
+; [9:12]= data (D0-D3, only for write)
+; [13]  = not used
+; [14]  = not used
+; [15]  = not used
+; [16]  = not used
+; [17]  = not used
+; [18]  = not used
+; [19]  = not used
+
+start:
+    pull block
+    out y, 1             ; y = write flag (0=read, 1=write)
+    out x, 8             ; x = address
+    out isr, 4           ; isr = data (for write)
+    mov pins, x          ; Set address pins (A0-A7)
+    set pins, 6          ; CS# low (active), WE#/OE# high (inactive)
+    jmp !y do_read
+
+do_write:
+    set pins, 2          ; CS#/WE# low (active), OE# high (inactive)
+    mov pins, isr        ; Set data pins D0-D3
+    nop [2]
+    set pins, 6          ; CS# low, WE#/OE# high (inactive)
+    set pins, 7          ; all inactive
+    jmp start
+
+do_read:
+    set pins, 4          ; CS#/OE# low (active), WE# high (inactive)
+    nop [2]
+    in pins, 4           ; Read D0-D3
+    set pins, 6          ; CS# low, WE#/OE# high (inactive)
+    set pins, 7          ; all inactive
+    push noblock
+    jmp start
+
+% c-sdk {
+#define RAM2114_DELAYS 5
+#define RAM2114_DELAY_FIELDS 8
+static const uint8_t ram2114_delays[5][32] = {{0, 31, 21, 1,  8,  9,  3,  8},    // 120ns
+                                              {0, 31, 12, 3, 10, 14,  3,  4},    // 150ns
+                                              {0, 31, 14, 5, 13, 21,  6,  7},    // 200ns
+                                              {0, 20, 21, 8, 19, 23, 10, 11},    // 250ns
+                                              {0, 20, 21, 7, 22, 27, 19,  1} };    // 300ns
+
+static inline void ram2114_program_init(PIO pio, uint sm, uint offset, uint pin) {
+    // Set up 15 total pins (A0-A7, D0-D3, CS#, WE#, OE#)
+    for (uint count = 0; count < 15; count++) {
+        pio_gpio_init(pio, pin + count);
+        gpio_set_slew_rate(pin + count, GPIO_SLEW_RATE_FAST);
+        gpio_set_drive_strength(pin + count, GPIO_DRIVE_STRENGTH_4MA);
+    }
+    // Address pins output
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 8, true);
+    // Data pins bidirectional (set as output for write, input for read)
+    pio_sm_set_consecutive_pindirs(pio, sm, pin + 8, 4, false); // Default input
+    // Control pins output
+    pio_sm_set_consecutive_pindirs(pio, sm, pin + 12, 3, true);
+
+    pio_sm_set_clkdiv(pio, sm, 1);
+
+    pio_sm_config c = ram2114_program_get_default_config(offset);
+    sm_config_set_out_pins(&c, pin, 8); // Address
+    sm_config_set_set_pins(&c, pin + 12, 3); // CS#, WE#, OE#
+    sm_config_set_in_pins(&c, pin + 8); // Data in (D0-D3)
+
+    sm_config_set_out_shift(&c, true, false, 13); // 1+8+4 bits
+    sm_config_set_in_shift(&c, false, false, 4);  // 4 bits in
+
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+int ram2114_ram_read(int addr) {
+    pio_sm_put(pio, sm, (0 << 0) | ((addr & 0xFF) << 1));
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {}
+    return pio_sm_get(pio, sm) & 0xF;
+}
+
+void ram2114_ram_write(int addr, int data) {
+    pio_sm_put(pio, sm, (1 << 0) |
+    ((addr & 0xFF) << 1) | 
+    ((data & 0xF) << 9));
+    
+    // No data to read back, just wait for completion
+    while (pio_sm_is_tx_fifo_full(pio, sm)) {}
+}
+
+
+pio_sm_put(pio, sm, 0 |                     // Fast page mode flag
+                        1 << 1 |                // Write flag
+                        (addr & 0x3f | 0x40) << 2 |    // Row address
+                        (addr >> 6) << 10|   // Column address
+                        ((data & 1) << 19));    // Data bit
+    while (pio_sm_is_rx_fifo_empty(pio, sm)) {} // Wait for dummy data
+    pio_sm_get(pio, sm);                        // Discard the dummy data bit
+
+
+void ram2114_setup_pio(uint speed_grade, uint variant) {
+    uint pin = 5;
+    set_current_pio_program(&ram2114_program);
+    bool rc = pio_claim_free_sm_and_add_program_for_gpio_range(get_current_pio_program(), &pio, &sm, &offset, pin, 15, true);
+    ram2114_program_init(pio, sm, offset, pin);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+void ram2114_teardown_pio() {
+    pio_sm_set_enabled(pio, sm, false);
+    pio_remove_program_and_unclaim_sm(&ram2114_program, pio, sm, offset);
+}
+
+static const mem_chip_t ram2114_chip = {
+    .setup_pio = ram2114_setup_pio,
+    .teardown_pio = ram2114_teardown_pio,
+    .ram_read = ram2114_ram_read,
+    .ram_write = ram2114_ram_write,
+    .mem_size = 1024,
+    .bits = 4,
+    .variants = NULL,
+    .speed_grades = RAM2114_DELAYS,
+    .chip_name = "2114 (1Kx4 SRAM)",
+    .speed_names = {"120ns", "150ns", "200ns", "250ns", "300ns"} };
+%}
