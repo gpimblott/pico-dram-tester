@@ -66,6 +66,9 @@ void core1_entry() {
     // Increase core voltage slightly (default is 1.1V) to better handle overclock
     vreg_set_voltage(VREG_VOLTAGE_1_20);
 
+    multicore_reset_core1(); // Ensure Core 1 is in reset state before configuration
+    sleep_ms(10); // Small delay to ensure reset is applied
+
     // PLL->prim = 0x51000. (Commented out, possibly for future reference or debugging)
 
     // stdio_uart_init_full(uart0, 57600, 28, 29); // 28=tx, 29=rx actually runs at 115200 due to overclock
