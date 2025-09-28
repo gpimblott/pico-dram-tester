@@ -28,6 +28,9 @@
 // Y-coordinate for the cell status display
 #define CELL_STAT_Y 33
 
+// Change the Rotary Encoder sensitivity here (1=high, 2=medium, 4=low)
+#define ENCODER_SENSITIVITY 2
+
 // Forward declarations for functions used in this file
 void start_the_ram_test();
 void stop_the_ram_test();
@@ -516,8 +519,10 @@ void do_encoder()
     static pin_debounce_t pin_a = {GPIO_QUAD_A, 0};
     static pin_debounce_t pin_b = {GPIO_QUAD_B, 0};
     static uint8_t wheel_state_old = 0; // Stores the previous state of the encoder
+    static int encoder_accum = 0;       // Accumulator for encoder steps
     uint8_t st;
     uint8_t wheel_state;
+    const int threshold = ENCODER_SENSITIVITY;            // Require 2 detents per action (increase to reduce sensitivity)
 
     // Read current debounced state of encoder pins
     wheel_state = do_debounce(&pin_a) | (do_debounce(&pin_b) << 1);
@@ -530,10 +535,19 @@ void do_encoder()
         // 11 -> 10 clockwise
         // 01 -> 00 counterclockwise
         if ((st == 0x01) || (st == 0x32)) { // Clockwise transitions
-            wheel_increment();
+            encoder_accum++;
         }
         if ((st == 0x23) || (st == 0x10)) { // Counter-clockwise transitions
+            encoder_accum--;
+        }
+        // Only trigger action when threshold is reached
+        while (encoder_accum >= threshold) {
+            wheel_increment();
+            encoder_accum -= threshold;
+        }
+        while (encoder_accum <= -threshold) {
             wheel_decrement();
+            encoder_accum += threshold;
         }
         wheel_state_old = wheel_state; // Update old state for next iteration
     }
