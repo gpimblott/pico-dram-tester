@@ -469,50 +469,53 @@ static uint32_t refresh_test(uint32_t addr_size, uint32_t bits)
  */
 static uint32_t checkerboard_test(uint32_t addr_size, uint32_t bits)
 {
-    uint32_t pattern1 = 0x55555555 & ((1ULL << bits) - 1); // Checkerboard pattern
-    uint32_t pattern2 = 0xAAAAAAAA & ((1ULL << bits) - 1); // Inverted checkerboard pattern
+    uint32_t pattern1 = 0x55555555 & ((1ULL << bits) - 1);
+    uint32_t pattern2 = 0xAAAAAAAA & ((1ULL << bits) - 1);
     uint32_t bitsin;
 
-    for (int bit = 0; bit < bits; bit++) {
-        stat_cur_bit = bit;      // Set the status bit for UI visualization
-       
-        for (int loop = 0; loop < 10; loop++)
-        {
-            // Test with pattern 1 (0x5555...)
-            stat_cur_subtest = 0; // Subtest 0 for pattern 1 write
-            for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++)
-            {
-                ram_write(stat_cur_addr, pattern1);
+    for (int loop = 0; loop < 10; loop++)
+    {
+        // Write pattern1
+        stat_cur_subtest = 0;
+        for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
+            for (int bit = 0; bit < bits; bit++) {
+                stat_cur_bit = bit; // Update for visualization
+                // Optionally, call a visualization update function here if needed
             }
+            ram_write(stat_cur_addr, pattern1);
+        }
 
-            stat_cur_subtest = 1; // Subtest 1 for pattern 1 read
-            for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++)
-            {
-                bitsin = ram_read(stat_cur_addr);
-                if ((bitsin & ram_bit_mask) != (pattern1 & ram_bit_mask))
-                {
-                    return 1; // Mismatch
-                }
+        // Read and check pattern1
+        stat_cur_subtest = 1;
+        for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
+            bitsin = ram_read(stat_cur_addr);
+            for (int bit = 0; bit < bits; bit++) {
+                stat_cur_bit = bit; // Update for visualization
+                // Optionally, call a visualization update function here if needed
             }
+            if (bitsin != pattern1)
+                return 1;
+        }
 
-            // Test with pattern 2 (0xAAAA...)
-            stat_cur_subtest = 2; // Subtest 2 for pattern 2 write
-            for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++)
-            {
-                ram_write(stat_cur_addr, pattern2);
+        // Write pattern2
+        stat_cur_subtest = 2;
+        for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
+            for (int bit = 0; bit < bits; bit++) {
+                stat_cur_bit = bit; // Update for visualization
             }
+            ram_write(stat_cur_addr, pattern2);
+        }
 
-            stat_cur_subtest = 3; // Subtest 3 for pattern 2 read
-            for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++)
-            {
-                bitsin = ram_read(stat_cur_addr);
-                if ((bitsin & ram_bit_mask) != (pattern2 & ram_bit_mask))
-                {
-                    return 1; // Mismatch
-                }
+        // Read and check pattern2
+        stat_cur_subtest = 3;
+        for (stat_cur_addr = 0; stat_cur_addr < addr_size; stat_cur_addr++) {
+            bitsin = ram_read(stat_cur_addr);
+            for (int bit = 0; bit < bits; bit++) {
+                stat_cur_bit = bit; // Update for visualization
             }
+            if (bitsin != pattern2)
+                return 1;
         }
     }
-
-    return 0; // Test passed
+    return 0;
 }
