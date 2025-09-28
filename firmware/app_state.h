@@ -8,7 +8,7 @@
 #include "gui.h"
 #include "mem_chip.h"
 
-#define APP_VERSION "0.4"
+#define APP_VERSION "Version 0.4"
 
 #define GPIO_POWER 4
 #define GPIO_QUAD_A 22
@@ -17,10 +17,13 @@
 #define GPIO_BACK_BTN 28
 #define GPIO_LED 25
 
-
+// NUmber of sizes of memory chips supported
 #define MAIN_MENU_ITEMS 16
 #define NUM_CHIPS 12
 #define PSEUDO_VALUES 64
+
+// Change the Rotary Encoder sensitivity here (1=high, 2=medium, 4=low)
+#define ENCODER_SENSITIVITY 2
 
 // Enums
 typedef enum {

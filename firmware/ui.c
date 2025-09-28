@@ -28,9 +28,6 @@
 // Y-coordinate for the cell status display
 #define CELL_STAT_Y 33
 
-// Change the Rotary Encoder sensitivity here (1=high, 2=medium, 4=low)
-#define ENCODER_SENSITIVITY 2
-
 // Forward declarations for functions used in this file
 void start_the_ram_test();
 void stop_the_ram_test();
