@@ -33,7 +33,6 @@ target_compile_definitions(pmemtest PRIVATE
 	PLL_SYS_POSTDIV2=1
 )
 
-pico_generate_pio_header(pmemtest ${CMAKE_CURRENT_LIST_DIR}/ram2114.pio)
 pico_generate_pio_header(pmemtest ${CMAKE_CURRENT_LIST_DIR}/ram4164.pio)
 pico_generate_pio_header(pmemtest ${CMAKE_CURRENT_LIST_DIR}/ram4116.pio)
 pico_generate_pio_header(pmemtest ${CMAKE_CURRENT_LIST_DIR}/ram4132.pio)

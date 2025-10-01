@@ -19,7 +19,7 @@
 
 // NUmber of sizes of memory chips supported
 #define MAIN_MENU_ITEMS 16
-#define NUM_CHIPS 13
+#define NUM_CHIPS 12
 #define PSEUDO_VALUES 64
 
 // Change the Rotary Encoder sensitivity here (1=high, 2=medium, 4=low)
