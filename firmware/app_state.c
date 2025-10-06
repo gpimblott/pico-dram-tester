@@ -20,7 +20,6 @@
 #include "xoroshiro64starstar.h"
 
 // Include PIO (Programmable I/O) programs for various RAM types
-#include "ram2114.pio.h"
 #include "ram4116.pio.h"
 #include "ram4132.pio.h"
 #include "ram4164.pio.h"
