@@ -4,7 +4,8 @@ Having trouble with your old-school DIP dynamic RAM chips? Here's a simple
 RAM tester that will give you a definitive pass or fail for a variety of
 chips.
 
-**This is an early beta release. The software is not completed. Feel free to
+**This is an updated version with additional tests and refaftoring of the code.
+Based on the early beta release by schlae . The software is not completed. Feel free to
 build a tester and try it out, and submit bug reports.**
 
 ![Photo of the board](images/pico-dram-tester-rev2b.jpg)
@@ -41,6 +42,7 @@ Out of scope
 * 0.2 - Changed to higher voltage as recommended by schlae in notes below.
 * 0.3 - Restructure code by G.Pimblott and merged in board changes for DC Jack by Markeno76
 * 0.4 - Added Checkerboard test
+* 0.5 - Added Address error test
 
 ## Construction
 

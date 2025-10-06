@@ -8,7 +8,7 @@
 #include "gui.h"
 #include "mem_chip.h"
 
-#define APP_VERSION "Version 0.4"
+#define APP_VERSION "Version 0.5"
 
 #define GPIO_POWER 4
 #define GPIO_QUAD_A 22
