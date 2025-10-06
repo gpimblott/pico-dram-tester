@@ -32,6 +32,23 @@ static uint32_t psrandom_test(uint32_t addr_size, uint32_t bits);               
 static uint32_t refresh_subtest(uint32_t addr_size, uint32_t bits, uint32_t time_delay); // Executes a refresh subtest
 static uint32_t refresh_test(uint32_t addr_size, uint32_t bits);                         // Executes the refresh test
 static uint32_t checkerboard_test( uint32_t adr_size, uint32_t bits);                    // Executes the checkerboard test
+static uint32_t address_in_address_test(uint32_t addr_size, uint32_t bits);              // Executes the address-in-address test
+
+
+// Test patterns for refresh stress testing
+static const uint32_t refresh_test_patterns[] = {
+    0x00000000,  // All zeros - minimum charge
+    0xFFFFFFFF,  // All ones - maximum charge  
+    0xAAAAAAAA,  // Alternating pattern
+    0x55555555,  // Inverse alternating
+    0x0F0F0F0F,  // 4-bit alternating
+    0xF0F0F0F0,  // Inverse 4-bit alternating
+    0x12345678,  // Mixed pattern
+    0x87654321   // Inverse mixed pattern
+};
+
+#define NUM_REFRESH_PATTERNS (sizeof(refresh_test_patterns) / sizeof(refresh_test_patterns[0]))
+
 
 /**
  * @brief Reads a data word from the specified RAM address.
@@ -112,11 +129,18 @@ uint32_t all_ram_tests(uint32_t addr_size, uint32_t bits)
     if (failed)
         return failed;
 
+    // Checkerboard Test
     test = 3;
     queue_add_blocking(&stat_cur_test, &test); // Update UI with current test
     failed = checkerboard_test(addr_size, bits);
     if (failed)
         return failed;
+
+    // Address-in-Address Test
+    test = 4;
+    queue_add_blocking(&stat_cur_test, &test);
+    failed = address_in_address_test(addr_size, bits);
+    if (failed) return failed;
 
     return 0; // All tests passed
 }
@@ -518,4 +542,207 @@ static uint32_t checkerboard_test(uint32_t addr_size, uint32_t bits)
         }
     }
     return 0;
+}
+
+
+/**
+ * @brief Helper function to reverse bits in a number.
+ *
+ * @param num The number to reverse.
+ * @param num_bits The number of bits to consider.
+ * @return The bit-reversed number.
+ */
+static uint32_t bit_reverse(uint32_t num, uint32_t num_bits)
+{
+    uint32_t result = 0;
+    for (uint32_t i = 0; i < num_bits; i++) {
+        if (num & (1ULL << i)) {
+            result |= (1ULL << (num_bits - 1 - i));
+        }
+    }
+    return result;
+}
+
+/**
+ * @brief Address-in-Address test with comprehensive address line testing.
+ *
+ * This performs multiple passes with different addressing patterns
+ * to catch more subtle address line faults:
+ * - Normal address sequence (0, 1, 2, 3, ...)
+ * - Reverse address sequence (max, max-1, max-2, ...)  
+ * - Bit-reversed address sequence
+ * - Powers-of-2 address sequence (1, 2, 4, 8, 16, ...)
+ *
+ * @param addr_size The total number of addresses in the RAM chip.
+ * @param bits The number of data bits in the RAM chip.
+ * @return 0 if all tests pass, bitmask indicating which bits failed.
+ */
+static uint32_t address_in_address_test(uint32_t addr_size, uint32_t bits)
+{
+    uint32_t failed = 0;
+    uint32_t addr, expected_data, actual_data;
+    uint32_t addr_mask;
+
+    // Calculate testable address bits and mask
+    uint32_t testable_addr_bits = (bits < 32) ? bits : 32;
+    addr_mask = (1ULL << testable_addr_bits) - 1;
+
+    // Test patterns: 0=normal, 1=reverse, 2=bit-reversed, 3=powers-of-2
+    for (uint32_t pattern = 0; pattern < 4; pattern++)
+    {
+        // Test each data bit individually  
+        for (uint32_t bit = 0; bit < bits; bit++)
+        {
+            stat_cur_bit = bit;          
+            ram_bit_mask = 1ULL << bit;  
+            stat_cur_subtest = pattern;  // Update UI with current test pattern
+
+            // Write phase
+            for (uint32_t i = 0; i < addr_size; i++)
+            {
+                // Calculate actual address based on pattern
+                switch (pattern) {
+                    case 0: // Normal sequence
+                        addr = i;
+                        break;
+                    case 1: // Reverse sequence  
+                        addr = (addr_size - 1) - i;
+                        break;
+                    case 2: // Bit-reversed sequence
+                        addr = bit_reverse(i, testable_addr_bits);
+                        break;
+                    case 3: // Powers of 2 (cycling)
+                        addr = 1ULL << (i % testable_addr_bits);
+                        break;
+                }
+
+                // Ensure address is within bounds
+                if (addr >= addr_size) continue;
+
+                stat_cur_addr = addr;
+
+                // Determine data to write based on address pattern
+                expected_data = (addr & addr_mask & ram_bit_mask);
+
+                if (expected_data != 0) {
+                    ram_write(addr, ram_bit_mask);
+                } else {
+                    ram_write(addr, ~ram_bit_mask);
+                }
+            }
+
+            // Read and verify phase
+            for (uint32_t i = 0; i < addr_size; i++)
+            {
+                // Calculate same address as write phase
+                switch (pattern) {
+                    case 0: addr = i; break;
+                    case 1: addr = (addr_size - 1) - i; break;
+                    case 2: addr = bit_reverse(i, testable_addr_bits); break;
+                    case 3: addr = 1ULL << (i % testable_addr_bits); break;
+                }
+
+                if (addr >= addr_size) continue;
+
+                stat_cur_addr = addr;
+
+                actual_data = ram_read(addr) & ram_bit_mask;
+                expected_data = (addr & addr_mask & ram_bit_mask);
+
+                if (actual_data != expected_data)
+                {
+                    failed |= (1ULL << bit);
+                    goto next_bit;  // Skip to next bit on failure
+                }
+            }
+
+            next_bit:;  // Label for goto
+        }
+    }
+
+    return failed;
+}
+
+
+/**
+ * @brief Internal helper: Fill memory with specified pattern.
+ *
+ * @param addr_size Number of addresses to fill.
+ * @param pattern 32-bit pattern to write.
+ * @param bit_mask Mask for current bit being tested.
+ */
+static void fill_memory_pattern(uint32_t addr_size, uint32_t pattern, uint32_t bit_mask)
+{
+    for (uint32_t addr = 0; addr < addr_size; addr++) {
+        stat_cur_addr = addr;
+
+        // Apply bit mask to pattern
+        uint32_t masked_pattern = (pattern & bit_mask) ? bit_mask : ~bit_mask;
+        ram_write(addr, masked_pattern);
+    }
+}
+
+/**
+ * @brief Internal helper: Verify memory against expected pattern.
+ *
+ * @param addr_size Number of addresses to verify.
+ * @param expected_pattern Expected 32-bit pattern.
+ * @param bit_mask Mask for current bit being tested.
+ * @param failed_addrs Buffer to store failed addresses (can be NULL).
+ * @param max_failed_addrs Maximum number of failed addresses to record.
+ * @return Number of failed addresses found.
+ */
+static uint32_t verify_memory_pattern(uint32_t addr_size, uint32_t expected_pattern, 
+                                     uint32_t bit_mask, uint32_t *failed_addrs, 
+                                     uint32_t max_failed_addrs)
+{
+    uint32_t failure_count = 0;
+    uint32_t expected_data = (expected_pattern & bit_mask) ? bit_mask : ~bit_mask;
+
+    for (uint32_t addr = 0; addr < addr_size; addr++) {
+        stat_cur_addr = addr;
+
+        uint32_t actual_data = ram_read(addr) & bit_mask;
+
+        if (actual_data != expected_data) {
+            failure_count++;
+
+            // Record failed address if buffer provided
+            if (failed_addrs && (failure_count - 1) < max_failed_addrs) {
+                failed_addrs[failure_count - 1] = addr;
+            }
+        }
+    }
+
+    return failure_count;
+}
+
+/**
+ * @brief Executes a single refresh stress subtest.
+ *
+ * @param addr_size Number of addresses to test.
+ * @param bits Number of data bits.
+ * @param pattern Test pattern to use.
+ * @param delay_ms Refresh delay in milliseconds.
+ * @param bit_mask Current bit mask being tested.
+ * @return 0 if test passes, number of failures if test fails.
+ */
+static uint32_t refresh_stress_subtest(uint32_t addr_size, uint32_t bits, 
+                                      uint32_t pattern, uint32_t delay_ms, 
+                                      uint32_t bit_mask)
+{
+    // Phase 1: Fill memory with test pattern
+    stat_cur_subtest = 0;  // Write phase
+    fill_memory_pattern(addr_size, pattern, bit_mask);
+
+    // Phase 2: Wait without refresh (this is the critical part)
+    stat_cur_subtest = 1;  // Stress phase
+
+    // Note: In a real implementation, you would need hardware control
+    // to actually disable DRAM refresh. This is a simulation of the delay.
+    sleep_ms(delay_ms);
+
+    // Phase 3: Verify data integrity
+    stat_cur_subtest = 2;  // Verify phase
+    return verify_memory_pattern(addr_size, pattern, bit_mask, NULL, 0);
 }
